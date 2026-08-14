@@ -88,6 +88,77 @@ function isPlaceholderPkg(pkg) {
   return !!(pkg && typeof pkg === 'object' && pkg._pnpmPlaceholder)
 }
 
+function issuesUrl(fullName) {
+  if (!validFullName(fullName)) return ''
+  return 'https://github.com/' + fullName + '/issues'
+}
+
+function contactAuthor(fullName) {
+  const url = issuesUrl(fullName)
+  return url ? ('请联系作者提交 Issue：' + url) : '请联系插件作者。'
+}
+
+function resolvePkgEntry(pkg) {
+  const exp = pkg && pkg.exports && pkg.exports['.']
+  if (typeof exp === 'string') return exp
+  if (exp && typeof exp === 'object') {
+    return exp.default || exp.import || exp.require || ''
+  }
+  return (pkg && pkg.main) || ''
+}
+
+/**
+ * Inspect an installed package directory for a loadable DSH plugin.
+ * Missing bundle/client metadata or a missing main entry means Host will
+ * not mount it; the warning tells the user to contact the repo author.
+ */
+function inspectPluginHealth(pkgDir, fullName) {
+  const issues_url = issuesUrl(fullName)
+  const contact = contactAuthor(fullName)
+  const problems = []
+  let placeholder = false
+  const pkgFile = join(pkgDir, 'package.json')
+  if (!existsSync(pkgFile)) {
+    problems.push('安装目录里没有 package.json')
+  } else {
+    let pkg
+    try {
+      pkg = JSON.parse(readFileSync(pkgFile, 'utf8'))
+    } catch {
+      pkg = null
+    }
+    if (!pkg || typeof pkg !== 'object') {
+      problems.push('package.json 无法解析')
+    } else if (isPlaceholderPkg(pkg)) {
+      placeholder = true
+      problems.push(PLACEHOLDER_WARN)
+    } else {
+      const entry = resolvePkgEntry(pkg)
+      if (entry && !existsSync(join(pkgDir, entry))) {
+        problems.push('缺少入口文件 ' + entry + '（仓库可能只提交了源码、没有构建产物）')
+      }
+      const dsh = pkg.dsh
+      const patch = dsh && dsh.bundle && dsh.bundle.patch
+      const client = dsh && dsh.client
+      if (!patch && !client) {
+        problems.push('未声明 dsh.bundle 或 dsh.client，Host 不会加载此插件')
+      }
+      if (patch && !existsSync(join(pkgDir, patch))) {
+        problems.push('声明了 dsh.bundle 但缺少 patch 文件 ' + patch)
+      }
+    }
+  }
+  const ok = problems.length === 0
+  return {
+    ok,
+    placeholder,
+    problems,
+    warning: ok ? '' : (problems.join('；') + '。' + contact),
+    contact,
+    issues_url,
+  }
+}
+
 function expand(p) {
   const path = sanitizePath(p && (p.p || p.path))
   if (p && p.full_name && p.name && p.category) {
@@ -341,25 +412,16 @@ function collectInstalledGithub() {
         const key = parsed.spec
         if (seen.has(key)) continue
         seen.add(key)
-        let placeholder = false
-        let warning = ''
-        try {
-          const nm = join(root, 'node_modules', depName, 'package.json')
-          if (existsSync(nm)) {
-            const np = JSON.parse(readFileSync(nm, 'utf8'))
-            if (isPlaceholderPkg(np)) {
-              placeholder = true
-              warning = PLACEHOLDER_WARN
-            }
-          }
-        } catch {}
+        const health = inspectPluginHealth(join(root, 'node_modules', depName), parsed.full_name)
         out.push({
           full_name: parsed.full_name,
           path: parsed.path,
           spec: s,
           name: depName,
-          placeholder,
-          warning,
+          placeholder: health.placeholder,
+          warning: health.warning,
+          usable: health.ok,
+          issues_url: health.issues_url,
         })
       }
     }
@@ -813,13 +875,29 @@ async function launchAdd(items, profile, title) {
     if (result.code !== 0) ok = false
   }
   const errorTail = (stderr || stdout || '').slice(-500) || 'failed'
+  let usable = ok
+  let message = ok ? ((isUpdate ? '已更新。' : '已安装。') + RESTART_HINT) : errorTail
+  const healthRows = []
+  if (ok) {
+    const installed = collectInstalledGithub()
+    for (const item of parsed) {
+      const row = installed.find(x => x.full_name === item.full_name)
+      if (row && row.warning) healthRows.push(row)
+    }
+    if (healthRows.length) {
+      usable = false
+      message = healthRows.map(x => x.warning).join('\n')
+    }
+  }
   return {
     ok,
+    usable,
     launched: false,
-    needsRestart: true,
-    message: ok ? ((isUpdate ? '已更新。' : '已安装。') + RESTART_HINT) : errorTail,
+    needsRestart: ok && usable,
+    message,
     command,
     targets: parsed.map(x => x.spec),
+    health: healthRows,
     stdout: stdout.slice(-4000),
     stderr: stderr.slice(-4000),
   }
@@ -1404,6 +1482,9 @@ export {
   decideNewer,
   decideStatus,
   checkUpdates,
+  inspectPluginHealth,
+  contactAuthor,
+  issuesUrl,
 }
 
 export async function apply(ctx) {
@@ -1420,7 +1501,7 @@ export async function apply(ctx) {
   try {
     const inst = collectInstalledGithub()
     for (const x of inst) {
-      if (x.placeholder && ctx.logger && ctx.logger.warn) {
+      if (x.warning && ctx.logger && ctx.logger.warn) {
         ctx.logger.warn('[dsh-plugins-catalog] ' + x.full_name + ': ' + x.warning)
       }
     }
