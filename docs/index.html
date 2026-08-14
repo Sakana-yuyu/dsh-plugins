@@ -77,6 +77,15 @@ footer code{background:var(--code);padding:2px 6px;border-radius:6px}
 .md a{color:var(--acc)}
 .mdetail{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
 .mdetail h3{margin:0 0 8px;font-size:18px}
+.install-strip{margin:0 0 20px;padding:18px 20px;border:1px solid var(--acc);border-radius:16px;background:var(--soft);box-shadow:var(--shadow)}
+.install-head strong{display:block;font-size:18px;letter-spacing:-.02em;font-weight:700;color:var(--acc);margin:0 0 6px}
+.install-hint{margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.55}
+.install-row{display:flex;gap:10px;align-items:center}
+.install-row .cmd{flex:1;min-width:0;font-size:13px;padding:12px 14px}
+.install-row .btn{flex:0 0 auto;white-space:nowrap}
+.install-alt{margin:12px 0 8px;color:var(--muted);font-size:12px;line-height:1.55}
+.install-npx{font-size:11px}
+@media(max-width:520px){.install-row{flex-wrap:wrap}.install-row .btn{width:100%}}
 @media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:520px){h1{font-size:24px}.grid,.feat{grid-template-columns:1fr}}
@@ -100,6 +109,18 @@ footer code{background:var(--code);padding:2px 6px;border-radius:6px}
       </div>
     </div>
   </header>
+  <aside class="install-strip" id="install-strip" aria-labelledby="install-title">
+    <div class="install-head">
+      <strong id="install-title">把本目录装进 DSH</strong>
+      <p class="install-hint" id="install-hint">在系统终端运行，不要让会话里的 Agent 代跑。装完重启 DSH。</p>
+    </div>
+    <div class="install-row">
+      <code class="cmd" id="catalog-cmd" data-install="dsh plugin --profile web add &quot;github:Sakana-yuyu/dsh-plugins&quot;" title="点击复制">dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"</code>
+      <button type="button" class="btn" id="btn-copy-catalog" data-install="dsh plugin --profile web add &quot;github:Sakana-yuyu/dsh-plugins&quot;">复制</button>
+    </div>
+    <p class="install-alt" id="install-alt">桌面版若找不到 dsh，先设 DSH_HOME 为桌面版主目录（例如 %USERPROFILE%\DeepSeek Harness\dsh-home），再用 npx：</p>
+    <code class="cmd install-npx" id="catalog-npx" data-install="npx @deepseek-ai/dsh plugin --profile web add &quot;github:Sakana-yuyu/dsh-plugins&quot;" title="点击复制">npx @deepseek-ai/dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"</code>
+  </aside>
   <div class="toolbar">
     <input id="q" type="search" placeholder="搜索插件、作者、描述…">
     <button class="btn" id="btn-search" type="button">搜索</button>
@@ -149,6 +170,10 @@ const I18N = {
     author: "作者", close: "关闭",
     readmeLoading: "正在加载 README…",
     copyTitle: "点击复制",
+    copyBtn: "复制",
+    installTitle: "把本目录装进 DSH",
+    installHint: "在系统终端运行，不要让会话里的 Agent 代跑。装完重启 DSH。",
+    installAlt: "桌面版若找不到 dsh，先设 DSH_HOME 为桌面版主目录（例如 %USERPROFILE%\\DeepSeek Harness\\dsh-home），再用 npx：",
     prev: "上一页", next: "下一页",
     page: (c,n) => `${c} / ${n}`
   },
@@ -167,6 +192,10 @@ const I18N = {
     author: "Author", close: "Close",
     readmeLoading: "Loading README…",
     copyTitle: "Click to copy",
+    copyBtn: "Copy",
+    installTitle: "Install this catalog into DSH",
+    installHint: "Run this in a real terminal, not inside the agent sandbox. Restart DSH after.",
+    installAlt: "If the desktop app cannot find dsh, set DSH_HOME to the desktop home (e.g. %USERPROFILE%\\DeepSeek Harness\\dsh-home), then use npx:",
     prev: "Prev", next: "Next",
     page: (c,n) => `${c} / ${n}`
   }
@@ -227,6 +256,12 @@ function applyLang() {
   $("btn-en").classList.toggle("on", lang==="en");
   $("btn-theme").textContent = theme === "light" ? i.themeDark : i.themeLight;
   $("modal-x").textContent = i.close;
+  $("install-title").textContent = i.installTitle;
+  $("install-hint").textContent = i.installHint;
+  $("install-alt").textContent = i.installAlt;
+  $("btn-copy-catalog").textContent = i.copyBtn;
+  $("catalog-cmd").title = i.copyTitle;
+  $("catalog-npx").title = i.copyTitle;
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
 }
 function card(p) {
