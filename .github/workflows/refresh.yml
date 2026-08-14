@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: "0 1 * * 1-5"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/refresh.py
+      - .github/workflows/refresh.yml
 jobs:
   refresh:
     runs-on: ubuntu-latest
