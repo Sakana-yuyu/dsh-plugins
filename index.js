@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 export const name = 'dsh-plugins-catalog'
 export const inject = ['tools', 'webServer']
@@ -30,12 +30,78 @@ const CATS = {
   other: { zh: '其他', en: 'Other' },
 }
 
+const PLACEHOLDER_WARN = '该插件仓库的包不在根目录，需要子目录信息，请向目录维护者补充 path 字段'
+const BUILTIN_PATHS = {
+  'Small-tailqwq/dsh-deep-whale': 'maid-atelier',
+}
+
+function sanitizePath(raw) {
+  const s = String(raw || '').trim().replace(/^\/+|\/+$/g, '')
+  if (!s || s.includes('..') || !/^[A-Za-z0-9_./-]+$/.test(s)) return ''
+  return s
+}
+
+function githubSpec(fullName, path) {
+  const full = String(fullName || '').trim()
+  const sub = sanitizePath(path)
+  return sub ? ('github:' + full + '#path:' + sub) : ('github:' + full)
+}
+
+function parseGithubSpec(spec) {
+  let s = String(spec || '').trim()
+  if (s.startsWith('github:')) s = s.slice(7)
+  const q = s.indexOf('?')
+  if (q >= 0) s = s.slice(0, q)
+  let frag = ''
+  const hash = s.indexOf('#')
+  let rest = s
+  if (hash >= 0) {
+    rest = s.slice(0, hash)
+    frag = s.slice(hash + 1)
+  }
+  rest = rest.replace(/\.git$/, '')
+  let path = ''
+  if (frag) {
+    const parts = frag.split('&')
+    for (const part of parts) {
+      if (part.startsWith('path:')) {
+        path = sanitizePath(decodeURIComponent(part.slice(5)))
+        break
+      }
+    }
+  }
+  return { full_name: rest, path, spec: githubSpec(rest, path) }
+}
+
+function toUpdateSpec(item) {
+  if (!item) return ''
+  if (typeof item === 'string') {
+    const raw = item.startsWith('github:') ? item : ('github:' + item)
+    return parseGithubSpec(raw).spec
+  }
+  if (item.spec) return parseGithubSpec(item.spec).spec
+  return githubSpec(item.full_name, item.path)
+}
+
+function isPlaceholderPkg(pkg) {
+  return !!(pkg && typeof pkg === 'object' && pkg._pnpmPlaceholder)
+}
+
 function expand(p) {
-  if (p && p.full_name && p.name && p.category) return p
+  const path = sanitizePath(p && (p.p || p.path))
+  if (p && p.full_name && p.name && p.category) {
+    if (path) return { ...p, path }
+    if (p.path) {
+      const next = { ...p }
+      delete next.path
+      return next
+    }
+    return p
+  }
   const cat = (p && (p.c || p.category)) || 'other'
   const labels = CATS[cat] || CATS.other
   const full = (p && (p.f || p.full_name)) || ''
-  return {
+  const out = {
     rank: p.r || p.rank,
     name: p.n || p.name,
     full_name: full,
@@ -51,10 +117,19 @@ function expand(p) {
     category_en: p.category_en || labels.en,
     clone_url: p.clone_url || ('https://github.com/' + full + '.git'),
   }
+  if (path) out.path = path
+  return out
 }
 
-function installCmd(fullName, profile) {
-  return 'dsh plugin --profile ' + (profile || 'web') + ' add "github:' + fullName + '"'
+function applyPathOverride(item, overrides) {
+  if (!item || item.path) return item
+  const ov = sanitizePath(overrides && overrides[item.full_name])
+  if (!ov) return item
+  return { ...item, path: ov }
+}
+
+function installCmd(fullName, profile, path) {
+  return 'dsh plugin --profile ' + (profile || 'web') + ' add "' + githubSpec(fullName, path) + '"'
 }
 
 let cache = null
@@ -68,6 +143,9 @@ async function loadCatalog() {
     const seed = await fetch(CATALOG_BASE + '/catalog.json').then(r => r.ok ? r.json() : []).catch(() => [])
     items = seed.map(expand)
   }
+  const remotePaths = await fetch(CATALOG_BASE + '/path-overrides.json').then(r => r.ok ? r.json() : {}).catch(() => ({}))
+  const overrides = { ...BUILTIN_PATHS, ...(remotePaths && typeof remotePaths === 'object' ? remotePaths : {}) }
+  items = items.map(item => applyPathOverride(item, overrides))
   cache = items
   return items
 }
@@ -84,25 +162,28 @@ function filterItems(items, query, category, officialOnly) {
 }
 
 function row(p) {
-  return {
+  const out = {
     rank: p.rank,
     name: p.name,
     full_name: p.full_name,
     stars: p.stars,
     official: p.official,
     category: p.category_zh || p.category,
-    install: installCmd(p.full_name, 'web'),
+    install: installCmd(p.full_name, 'web', p.path),
+    spec: githubSpec(p.full_name, p.path),
     clone: p.clone_url,
     url: p.html_url,
     description: p.description_zh || p.description || p.description_en,
   }
+  if (p.path) out.path = p.path
+  return out
 }
 
 function apiRow(p) {
   const r = row(p)
   const full = r.full_name || ''
   const slash = full.indexOf('/')
-  return {
+  const out = {
     rank: r.rank,
     name: r.name,
     full_name: full,
@@ -115,8 +196,11 @@ function apiRow(p) {
     description_zh: p.description_zh || '',
     description_en: p.description_en || '',
     install: r.install,
+    spec: r.spec,
     url: r.url,
   }
+  if (p.path || r.path) out.path = p.path || r.path
+  return out
 }
 
 function validFullName(full) {
@@ -212,15 +296,37 @@ function collectInstalledGithub() {
       pkg = JSON.parse(readFileSync(p, 'utf8'))
     } catch { continue }
     if (!pkg || typeof pkg !== 'object') continue
+    const root = dirname(p)
     for (const bag of [pkg.dependencies, pkg.devDependencies]) {
       if (!bag || typeof bag !== 'object') continue
-      for (const spec of Object.values(bag)) {
+      for (const [depName, spec] of Object.entries(bag)) {
         const s = String(spec || '')
         if (!s.startsWith('github:')) continue
-        let rest = s.slice(7).split('#')[0].split('?')[0].replace(/\.git$/, '')
-        if (!validFullName(rest) || seen.has(rest)) continue
-        seen.add(rest)
-        out.push({ full_name: rest, spec: s })
+        const parsed = parseGithubSpec(s)
+        if (!validFullName(parsed.full_name)) continue
+        const key = parsed.spec
+        if (seen.has(key)) continue
+        seen.add(key)
+        let placeholder = false
+        let warning = ''
+        try {
+          const nm = join(root, 'node_modules', depName, 'package.json')
+          if (existsSync(nm)) {
+            const np = JSON.parse(readFileSync(nm, 'utf8'))
+            if (isPlaceholderPkg(np)) {
+              placeholder = true
+              warning = PLACEHOLDER_WARN
+            }
+          }
+        } catch {}
+        out.push({
+          full_name: parsed.full_name,
+          path: parsed.path,
+          spec: s,
+          name: depName,
+          placeholder,
+          warning,
+        })
       }
     }
     if (out.length) return out
@@ -229,9 +335,10 @@ function collectInstalledGithub() {
 }
 
 function allUpdateFulls() {
-  const names = collectInstalledGithub().map(x => x.full_name)
-  if (!names.includes(SELF_FULL)) names.push(SELF_FULL)
-  return names.filter(validFullName)
+  const items = collectInstalledGithub()
+  const specs = items.map(toUpdateSpec).filter(Boolean)
+  if (!items.some(x => x.full_name === SELF_FULL)) specs.push(githubSpec(SELF_FULL, ''))
+  return specs
 }
 
 async function fetchSelfSha() {
@@ -267,10 +374,12 @@ async function checkUpdates(persist) {
     if (latestSha && !prefs.lastSelfSha) prefs.lastSelfSha = latestSha
     savePrefs(prefs)
   }
+  const installed = collectInstalledGithub()
   return {
     ok: true,
     self: { full_name: SELF_FULL, current, latestSha, newer },
-    installed: collectInstalledGithub(),
+    installed,
+    warnings: installed.filter(x => x.warning).map(x => x.full_name + ': ' + x.warning),
     checkedAt,
   }
 }
@@ -314,32 +423,43 @@ function psHomeDetect() {
   ]
 }
 
-function psAddOne(full, profile) {
+function specFromItem(item) {
+  if (!item) return ''
+  if (typeof item === 'string') return toUpdateSpec(item)
+  return githubSpec(item.full_name, item.path)
+}
+
+function psAddOne(item, profile) {
+  const spec = specFromItem(item)
   return [
     "if (Get-Command dsh -ErrorAction SilentlyContinue) {",
-    "  dsh plugin --profile " + profile + " add \"github:" + full + "\"",
+    "  dsh plugin --profile " + profile + " add \"" + spec + "\"",
     "} elseif (Get-Command npx -ErrorAction SilentlyContinue) {",
-    "  npx --yes @deepseek-ai/dsh plugin --profile " + profile + " add \"github:" + full + "\"",
+    "  npx --yes @deepseek-ai/dsh plugin --profile " + profile + " add \"" + spec + "\"",
     "} else {",
     "  Write-Host '找不到 dsh 或 npx，请先安装 Node.js 或把 dsh 加到 PATH'",
     "}",
   ]
 }
 
-function buildPsScript(full, profile) {
-  return psHomeDetect().concat(psAddOne(full, profile), ["Write-Host '完成。请重启 DSH / dsh-desktop。'"]).join('; ')
+function buildPsScript(item, profile) {
+  return psHomeDetect().concat(psAddOne(item, profile), ["Write-Host '完成。请重启 DSH / dsh-desktop。'"]).join('; ')
 }
 
-function buildPsUpdateAll(fulls, profile) {
-  const list = fulls.filter(validFullName).map(f => "'" + f + "'").join(',')
+function buildPsUpdateAll(items, profile) {
+  const specs = (items || []).map(specFromItem).filter(s => {
+    const parsed = parseGithubSpec(s)
+    return validFullName(parsed.full_name)
+  })
+  const list = specs.map(s => "'" + String(s).replace(/'/g, '') + "'").join(',')
   return psHomeDetect().concat([
     "$repos = @(" + list + ")",
     "foreach ($f in $repos) {",
     "  Write-Host ('更新 ' + $f)",
     "  if (Get-Command dsh -ErrorAction SilentlyContinue) {",
-    "    dsh plugin --profile " + profile + " add (\"github:\" + $f)",
+    "    dsh plugin --profile " + profile + " add $f",
     "  } elseif (Get-Command npx -ErrorAction SilentlyContinue) {",
-    "    npx --yes @deepseek-ai/dsh plugin --profile " + profile + " add (\"github:\" + $f)",
+    "    npx --yes @deepseek-ai/dsh plugin --profile " + profile + " add $f",
     "  } else {",
     "    Write-Host '找不到 dsh 或 npx，请先安装 Node.js 或把 dsh 加到 PATH'; break",
     "  }",
@@ -388,11 +508,12 @@ async function spawnNamed(bin, args) {
   })
 }
 
-async function installViaNpxOrDsh(full, profile) {
-  const npxArgs = ['--yes', '@deepseek-ai/dsh', 'plugin', '--profile', profile, 'add', 'github:' + full]
+async function installViaNpxOrDsh(item, profile) {
+  const spec = specFromItem(item)
+  const npxArgs = ['--yes', '@deepseek-ai/dsh', 'plugin', '--profile', profile, 'add', spec]
   let result = await spawnNamed('npx', npxArgs)
   if (result.code !== 0) {
-    const dsh = await spawnNamed('dsh', ['plugin', '--profile', profile, 'add', 'github:' + full])
+    const dsh = await spawnNamed('dsh', ['plugin', '--profile', profile, 'add', spec])
     result = {
       code: dsh.code,
       stdout: (result.stdout || '') + (dsh.stdout || ''),
@@ -402,14 +523,13 @@ async function installViaNpxOrDsh(full, profile) {
   return result
 }
 
-async function launchAdd(fulls, profile, title) {
-  const command = fulls.length === 1
-    ? installCmd(fulls[0], profile)
-    : fulls.map(f => installCmd(f, profile)).join(' && ')
+async function launchAdd(items, profile, title) {
+  const parsed = (items || []).map(specFromItem).map(parseGithubSpec)
+  const command = parsed.map(x => installCmd(x.full_name, profile, x.path)).join(' && ')
   const { spawnSync, existsSync } = await loadNodeMods()
   const useWin = process.platform === 'win32' || !!findPowerShellHost(spawnSync, existsSync)
   if (useWin) {
-    const script = fulls.length === 1 ? buildPsScript(fulls[0], profile) : buildPsUpdateAll(fulls, profile)
+    const script = parsed.length === 1 ? buildPsScript(parsed[0], profile) : buildPsUpdateAll(parsed, profile)
     try {
       await launchVisiblePowerShell(script, title)
       return {
@@ -420,7 +540,7 @@ async function launchAdd(fulls, profile, title) {
           ? '已打开 PowerShell 更新窗口，完成后请重启 DSH'
           : '已打开 PowerShell 安装窗口，完成后请重启 DSH',
         command,
-        targets: fulls,
+        targets: parsed.map(x => x.spec),
       }
     } catch (err) {
       return {
@@ -429,7 +549,7 @@ async function launchAdd(fulls, profile, title) {
         needsRestart: true,
         message: String(err && err.message || err),
         command,
-        targets: fulls,
+        targets: parsed.map(x => x.spec),
         stdout: '',
         stderr: String(err && err.message || err),
       }
@@ -438,8 +558,8 @@ async function launchAdd(fulls, profile, title) {
   let ok = true
   let stdout = ''
   let stderr = ''
-  for (const f of fulls) {
-    const result = await installViaNpxOrDsh(f, profile)
+  for (const item of parsed) {
+    const result = await installViaNpxOrDsh(item, profile)
     stdout += result.stdout || ''
     stderr += result.stderr || ''
     if (result.code !== 0) ok = false
@@ -450,21 +570,25 @@ async function launchAdd(fulls, profile, title) {
     needsRestart: true,
     message: ok ? (title === '更新插件' ? 'updated' : 'installed') : ((stderr || '').slice(-500) || 'failed'),
     command,
-    targets: fulls,
+    targets: parsed.map(x => x.spec),
     stdout: stdout.slice(-4000),
     stderr: stderr.slice(-4000),
   }
 }
 
-async function installPlugin(full, profile) {
-  return launchAdd([full], profile, '安装插件')
+async function installPlugin(full, profile, path) {
+  return launchAdd([githubSpec(full, path)], profile, '安装插件')
 }
 
 function resolveUpdateFulls(target) {
   const t = String(target || '').trim()
-  if (t === 'self') return [SELF_FULL]
+  if (t === 'self') return [githubSpec(SELF_FULL, '')]
   if (t === 'all') return allUpdateFulls()
-  if (validFullName(t)) return [t]
+  if (t.startsWith('github:') || t.includes('#path:') || validFullName(t.split('#')[0])) {
+    const parsed = parseGithubSpec(t.startsWith('github:') ? t : ('github:' + t))
+    if (!validFullName(parsed.full_name)) return null
+    return [parsed.spec]
+  }
   return null
 }
 
@@ -576,12 +700,18 @@ async function registerWithDefineTool(ctx) {
         return { ok: false, error: 'full_name must look like owner/repo' }
       }
       const profile = safeProfile(args.profile)
-      const cmd = installCmd(full, profile)
+      let previewPath = ''
+      try {
+        const items = await loadCatalog()
+        const hit = items.find(x => x.full_name === full)
+        if (hit && hit.path) previewPath = hit.path
+      } catch {}
+      const cmd = installCmd(full, profile, previewPath)
       const clone = 'git clone https://github.com/' + full + '.git'
       if (args.run === false) {
-        return { ok: true, ran: false, command: cmd, clone }
+        return { ok: true, ran: false, command: cmd, clone, path: previewPath || undefined }
       }
-      const result = await installPlugin(full, profile)
+      const result = await installPlugin(full, profile, previewPath)
       return {
         ok: result.ok,
         ran: true,
@@ -754,15 +884,23 @@ async function handleHttp(req, res) {
       return
     }
     const profile = safeProfile(body && body.profile)
+    let sub = sanitizePath(body && body.path)
+    if (!sub) {
+      try {
+        const items = await loadCatalog()
+        const hit = items.find(x => x.full_name === full)
+        if (hit && hit.path) sub = hit.path
+      } catch {}
+    }
     try {
-      const result = await installPlugin(full, profile)
+      const result = await installPlugin(full, profile, sub)
       sendJson(res, result.ok ? 200 : 500, result)
     } catch (err) {
       sendJson(res, 500, {
         ok: false,
         needsRestart: true,
         message: String(err && err.message || err),
-        command: installCmd(full, profile),
+        command: installCmd(full, profile, sub),
         stdout: '',
         stderr: String(err && err.message || err),
       })
@@ -836,6 +974,18 @@ async function scheduledTick(ctx) {
   }
 }
 
+export {
+  sanitizePath,
+  githubSpec,
+  parseGithubSpec,
+  toUpdateSpec,
+  isPlaceholderPkg,
+  expand,
+  installCmd,
+  applyPathOverride,
+  PLACEHOLDER_WARN,
+}
+
 export async function apply(ctx) {
   try {
     await registerWithDefineTool(ctx)
@@ -846,6 +996,16 @@ export async function apply(ctx) {
     registerHttp(ctx)
   } catch (err) {
     if (ctx.logger && ctx.logger.warn) ctx.logger.warn('[dsh-plugins-catalog] http ' + err)
+  }
+  try {
+    const inst = collectInstalledGithub()
+    for (const x of inst) {
+      if (x.placeholder && ctx.logger && ctx.logger.warn) {
+        ctx.logger.warn('[dsh-plugins-catalog] ' + x.full_name + ': ' + x.warning)
+      }
+    }
+  } catch (err) {
+    if (ctx.logger && ctx.logger.warn) ctx.logger.warn('[dsh-plugins-catalog] installed ' + err)
   }
   try {
     const prefs = loadPrefs()
