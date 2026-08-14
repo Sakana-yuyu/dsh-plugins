@@ -249,11 +249,16 @@ function ownerOf(p){return String(p.full_name||"").split("/")[0];}
 function ogUrl(full){return "https://opengraph.githubassets.com/1/"+full;}
 const CATS = {official:{zh:"官方核心",en:"Official core"},ui:{zh:"UI 与皮肤",en:"UI & skins"},vision:{zh:"视觉",en:"Vision"},tui:{zh:"终端 TUI",en:"Terminal TUI"},desktop:{zh:"桌面客户端",en:"Desktop"},browser:{zh:"浏览器",en:"Browser"},workflow:{zh:"工作流与多智能体",en:"Workflow & agents"},tools:{zh:"工具与技能",en:"Tools & skills"},search:{zh:"搜索与研究",en:"Search & research"},dev:{zh:"开发与代码",en:"Dev & code"},awesome:{zh:"目录与精选",en:"Awesome lists"},other:{zh:"其他",en:"Other"}};
 function expand(p) {
-  if (p.full_name && p.name) return p;
+  const raw = String((p && (p.p || p.path)) || "").trim().replace(/^\/+|\/+$/g, "");
+  const path = raw && !raw.includes("..") ? raw : "";
+  if (p.full_name && p.name) {
+    if (path) return Object.assign({}, p, { path });
+    return p;
+  }
   const c = p.c || p.category || "other";
   const labels = CATS[c] || CATS.other;
   const full = p.f || p.full_name || "";
-  return {
+  const out = {
     rank: p.r || p.rank, name: p.n || p.name, full_name: full,
     html_url: p.u || p.html_url || ("https://github.com/" + full),
     description_zh: p.z || p.description_zh, description_en: p.e || p.description_en,
@@ -263,10 +268,14 @@ function expand(p) {
     category_zh: p.category_zh || labels.zh, category_en: p.category_en || labels.en,
     clone_url: p.clone_url || ("https://github.com/" + full + ".git")
   };
+  if (path) out.path = path;
+  return out;
 }
 function installCmd(p) {
   const spec = (p.full_name || "").replace(/^\/+/, "");
-  return "dsh plugin --profile web add \"github:" + spec + "\"";
+  const raw = String((p && p.path) || "").trim();
+  const extra = raw && !raw.includes("..") ? ("#path:" + raw) : "";
+  return "dsh plugin --profile web add \"github:" + spec + extra + "\"";
 }
 function desc(p) { return lang === "zh" ? (p.description_zh || p.description) : (p.description_en || p.description); }
 function catLabel(p) { return lang === "zh" ? (p.category_zh || p.category) : (p.category_en || p.category); }
@@ -575,8 +584,18 @@ Promise.all([
     if (flat.length >= 200) return flat;
     return fetch("catalog.json").then(r => r.json()).then(d => (Array.isArray(d)?d:[]).map(expand));
   }),
-  fetch("official.json").then(r => r.json())
-]).then(([c, o]) => { catalog = c; official = o; render(); })
+  fetch("official.json").then(r => r.json()),
+  fetch("./path-overrides.json").then(r => r.ok ? r.json() : {}).catch(() => ({}))
+]).then(([c, o, paths]) => {
+  catalog = (c || []).map(item => {
+    if (!item || item.path || !paths) return item;
+    const raw = String(paths[item.full_name] || "").trim();
+    if (!raw || raw.includes("..")) return item;
+    return Object.assign({}, item, { path: raw });
+  });
+  official = o;
+  render();
+})
 .catch(err => { $("stats").textContent = String(err); });
 </script>
 </body>
