@@ -356,7 +356,7 @@ async function launchVisiblePowerShell(script, title) {
     let child
     if (process.platform === 'win32') {
       // cmd `start` treats the first unquoted token as a filename (the Windows
-      // dialog \"找不到文件 '安装插件'\" ). A title with a space is quoted by Node,
+      // dialog "找不到文件 '安装插件'" ). A title with a space is quoted by Node,
       // so start uses it as the window title instead.
       child = spawn('cmd.exe', ['/c', 'start', 'DSH plugin', shell, '-NoExit', '-Command', script], {
         detached: true,
