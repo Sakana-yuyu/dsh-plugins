@@ -1,10 +1,194 @@
 {
-  "deepseek-ai/deepseek-harness": {"zh": "DeepSeek Harness：一切皆插件。开源 agent 运行时，官方核心仓库。", "en": "DeepSeek Harness: everything is a plugin. Official open-source agent runtime."},
-  "titanwings/colleague-skill": {"zh": "把冰冷的离别化为温暖的 Skill，欢迎加入数字生命 1.0。", "en": "Turn a cold farewell into a warm Skill. Welcome to Digital Life 1.0."},
-  "Devin-AXIS/iPolloWork": {"zh": "下一代源码可得的 AI 工作台，接入 DeepSeek Harness 做子代理委派。", "en": "Next-gen source-available AI workspace that integrates DSH for subagent delegation."},
-  "whiteguo233/OpenBiliClaw": {"zh": "本地私有的跨平台内容发现 Agent，支持 B 站、小红书、抖音等，可作 DSH 插件。", "en": "Local-first cross-platform content discovery agent; also ships as a DSH plugin."},
-  "paean-ai/deeptide": {"zh": "为 DeepSeek 打造的 Swift 原生 macOS 编程代理。", "en": "A Swift-native macOS coding agent, built by DeepSeek, for DeepSeek."},
-  "zhu1090093659/dsh-web-ui": {"zh": "DSH Web UI 插件与皮肤合集：任务板、Git 图、侧栏、远程移动端、宠物与皮肤中心。", "en": "Plugin and skin collection for DSH Web UI: task board, git graph, sidebar, mobile UI, pet, skins."},
-  "liustack/modlens": {"zh": "DSH 首个视觉插件：粘贴图片，得到 OCR、版面与语义的结构化证据。", "en": "First vision plugin for DSH. Paste an image, get structured OCR, layout, and semantics."},
-  "ccch1mneyyy/dsh-TUI": {"zh": "Claude Code 风格全屏终端插件：像素鲸鱼顶栏、思考流、Esc 回滚与 TPS 仪表。", "en": "Claude Code-style fullscreen TUI: pixel-whale header, thought stream, Esc rewind, TPS gauge."}
+  "deepseek-ai/deepseek-harness": {
+    "zh": "DeepSeek Harness：一切皆插件。开源 agent 运行时，官方核心仓库。",
+    "en": "DeepSeek Harness: everything is a plugin. Official open-source agent runtime."
+  },
+  "titanwings/colleague-skill": {
+    "zh": "把冰冷的离别化为温暖的 Skill，欢迎加入数字生命 1.0。",
+    "en": "Turn a cold farewell into a warm Skill. Welcome to Digital Life 1.0."
+  },
+  "Devin-AXIS/iPolloWork": {
+    "zh": "下一代源码可得的 AI 工作台，接入 DeepSeek Harness 做子代理委派。",
+    "en": "Next-gen source-available AI workspace that integrates DSH for subagent delegation."
+  },
+  "whiteguo233/OpenBiliClaw": {
+    "zh": "本地私有的跨平台内容发现 Agent，支持 B 站、小红书、抖音等，可作 DSH 插件。",
+    "en": "Local-first cross-platform content discovery agent; also ships as a DSH plugin."
+  },
+  "paean-ai/deeptide": {
+    "zh": "为 DeepSeek 打造的 Swift 原生 macOS 编程代理。",
+    "en": "A Swift-native macOS coding agent, built by DeepSeek, for DeepSeek."
+  },
+  "zhu1090093659/dsh-web-ui": {
+    "zh": "DSH Web UI 插件与皮肤合集：任务板、Git 图、侧栏、远程移动端、宠物与皮肤中心。",
+    "en": "Plugin and skin collection for DSH Web UI: task board, git graph, sidebar, mobile UI, pet, skins."
+  },
+  "nutshellai-tech/mobius": {
+    "zh": "开源自进化 Agent OS，连接团队、智能体、设备与算力。",
+    "en": "The first self-evolving open-source Agent OS, connecting team, agents, devices, and compute."
+  },
+  "liustack/modlens": {
+    "zh": "DSH 首个视觉插件：粘贴图片，得到 OCR、版面与语义的结构化证据。",
+    "en": "First vision plugin for DSH. Paste an image, get structured OCR, layout, and semantics."
+  },
+  "Anionex/agent-vision-toolkit": {
+    "zh": "为纯文本模型设计的视觉工具箱：多图理解、OCR、UI 还原与 GUI 自动化。",
+    "en": "Vision toolkit for text-only models: multi-image Q&A, OCR, UI restore, GUI automation."
+  },
+  "hellowind777/helloagents": {
+    "zh": "自主高级智能伙伴：不仅分析问题，更持续工作直到实现并验证。",
+    "en": "An autonomous senior partner that keeps working until the change is implemented and verified."
+  },
+  "sandbaseai/sandbase-harness": {
+    "zh": "开源 CMA 兼容 agent 运行时，本地多代理、任意模型、MCP 与仪表盘。",
+    "en": "Open-source CMA-compatible agent runtime with local multi-agent, any model, MCP, and a dashboard."
+  },
+  "ccch1mneyyy/dsh-TUI": {
+    "zh": "Claude Code 风格全屏终端插件：像素鲸鱼顶栏、思考流、Esc 回滚与 TPS 仪表。",
+    "en": "Claude Code-style fullscreen TUI: pixel-whale header, thought stream, Esc rewind, TPS gauge."
+  },
+  "AdamPlatin123/awesome-dsh-plugins": {
+    "zh": "雷达索引：自动扫描发现的 DSH 插件候选，合格后移入精选目录。",
+    "en": "Radar index that auto-scans DSH plugin candidates; qualified ones move into a curated catalog."
+  },
+  "omdsh-dev/DSH-better-sidebar": {
+    "zh": "完整侧栏工作台，支持第三方注册 Tab，内置文件、终端、Git 与子代理。",
+    "en": "A full sidebar workbench with third-party tabs, files, terminal, Git, and subagents."
+  },
+  "awesome-dsh-plugin/awesome-dsh-plugin": {
+    "zh": "DeepSeek Harness 插件精选列表。",
+    "en": "A curated list of plugins for DeepSeek Harness (dsh)."
+  },
+  "PM-Shawn/Abu-Cowork": {
+    "zh": "开源、本地优先的 Claude Cowork 替代：多模型、自进化技能，正在接入 DSH。",
+    "en": "Open-source local-first Claude Cowork alternative; DSH integration in progress."
+  },
+  "linhay/harmony-next.skills": {
+    "zh": "鸿蒙 NEXT（API 12+）开发专家技能：IDE、性能、架构与自动化测试。",
+    "en": "Expert guidance for HarmonyOS NEXT (API 12+) development, performance, and testing."
+  },
+  "Small-tailqwq/dsh-deep-whale": {
+    "zh": "DSH Web 鲸鱼娘皮肤系列（深海女仆工坊）。",
+    "en": "DSH Web whale-girl skin series from the Deep-Sea Maid Atelier."
+  },
+  "alaliqing/claude-paper": {
+    "zh": "自动研读论文：生成材料、代码演示与交互式网页阅读器。",
+    "en": "Automates research-paper study with materials, code demos, and an interactive viewer."
+  },
+  "morluto/rea": {
+    "zh": "用智能体逆向一切：从应用行为下钻到原生二进制。",
+    "en": "Reverse engineer anything with agents, from app behavior down to native binaries."
+  },
+  "cofy-x/axern": {
+    "zh": "开源沙箱，供 AI 智能体、不可信代码执行与持久服务使用。",
+    "en": "Open-source sandboxes for AI agents, untrusted code execution, and durable services."
+  },
+  "Anionex/dsh-vision-toolkit": {
+    "zh": "DSH 原生视觉插件：带意图的看图问答、长截图 OCR、UI 还原。",
+    "en": "DSH-native vision plugin: intent-aware image Q&A, long-screenshot OCR, UI restoration."
+  },
+  "0xsline/awesome-deepseek-harness": {
+    "zh": "DSH 生态精选：插件、工具与基础设施。",
+    "en": "DSH ecosystem: curated plugins, tools, and infrastructure."
+  },
+  "SepineTam/mcp-for-stata": {
+    "zh": "把 Stata 接入智能体的 MCP 服务器。",
+    "en": "An MCP server that integrates Stata into your agent."
+  },
+  "openma-ai/open-managed-agents": {
+    "zh": "开源 Claude Managed Agents 实现，可自托管，兼容 Cloudflare / Node。",
+    "en": "Open-source Claude Managed Agents implementation; self-hosted on Cloudflare or Node."
+  },
+  "Nagi-ovo/dsh-ads": {
+    "zh": "2005 年中文站点风格的 DSH Web UI 恶搞广告插件。",
+    "en": "A 2005-era Chinese-web parody ad plugin for the DSH Web UI."
+  },
+  "NanmiCoder/dsh-agent-teams": {
+    "zh": "DeepSeek Harness 的 AgentTeams 多智能体插件。",
+    "en": "AgentTeams plugin for DeepSeek Harness."
+  },
+  "humblebanana/open-record-replay": {
+    "zh": "开源 macOS 录制回放工具，把键鼠与 UI 事件变成智能体可学习的轨迹。",
+    "en": "Open-source macOS record-and-replay for computer-use agents."
+  },
+  "zhaoolee/notes": {
+    "zh": "开源锤子便签：Docker 私有化、支持 skill 与 dsh plugin、多租户。",
+    "en": "Open-source Smartisan-style notes: Docker, skills, DSH plugin, multi-tenant."
+  },
+  "Sikao-Engine/KimiX": {
+    "zh": "下一代轻量编程代理 CLI。",
+    "en": "The next-gen lightweight coding agent CLI."
+  },
+  "hust-open-atom-club/oh-dsh": {
+    "zh": "一站式 DSH 社区发行版：TUI、桌面与 Web UI 统一体验。",
+    "en": "One-stop DSH community distro: unified TUI, desktop, and Web UI."
+  },
+  "huiliyi37/dsh-tianshu-tui": {
+    "zh": "官方 DSH 上的交互式终端 UI，叠加 TDD 与证据门工作流。",
+    "en": "Interactive terminal UI on official DSH, plus TDD and evidence-gate workflows."
+  },
+  "Electricitysheep/dsh-handbook": {
+    "zh": "DSH 从 0 到 1 深度手册：安装、插件开发、调优与实测。",
+    "en": "Deep DSH handbook: install, plugin development, tuning, and measured cases."
+  },
+  "liustack/modsearch": {
+    "zh": "DSH 网页搜索插件：问 Web 或 X，得到带引用的结构化证据。",
+    "en": "Web plugin for DSH. Ask the web or X, get structured JSON evidence with citations."
+  },
+  "pulseaiclub/phi": {
+    "zh": "来自 pi 的编程 Agent：多提供方、子代理、权限门。",
+    "en": "A coding agent from pi: many providers, sub-agents, and a permission gate."
+  },
+  "wink-run/tokenbank": {
+    "zh": "本地 LLM 网关：路由、省钱、用量追踪，可接各类编程代理。",
+    "en": "Local LLM gateway: smart routing, spend less, full token trace for any agent."
+  },
+  "vlln/whale-girl": {
+    "zh": "DSH Web GUI 桌面宠物：可拖拽、投喂、玩耍的鲸鱼伙伴。",
+    "en": "DSH Web GUI desktop pet: a draggable, feedable whale companion."
+  },
+  "omdsh-dev/dsh-at-file": {
+    "zh": "为 DSH 提供 Codex 风格的 @file 提及与工作区文件搜索。",
+    "en": "Codex-style @file mentions and workspace file search for DSH."
+  },
+  "Jayden-X-L/forkprobe": {
+    "zh": "同一任务上比较多个 skill，选出赢家。",
+    "en": "Compare multiple skills on the same task and pick the winner."
+  },
+  "taxueseek/argo": {
+    "zh": "为 agent 打造的多语言搜索：中英、学术、代码、购物、金融、新闻。",
+    "en": "Agent-first multilingual search: ZH/EN, academic, code, shopping, finance, news."
+  },
+  "Nagi-ovo/dsh-find-plugins": {
+    "zh": "在 DSH 里发现并安装插件的发现器。",
+    "en": "A plugin discovery helper that finds and installs DSH plugins."
+  },
+  "Nagi-ovo/dsh-visualize": {
+    "zh": "对话内生成式 UI：把交互式 HTML 卡片画进会话流。",
+    "en": "In-chat generative UI: interactive HTML cards rendered inside the conversation."
+  },
+  "Lum1104/dsh-browser": {
+    "zh": "Chrome 侧栏扩展，让 DSH 直接操作你的浏览器，无需视觉能力。",
+    "en": "Chrome sidebar so DSH can operate your browser directly — no vision required."
+  },
+  "ZSeven-W/dsh-openpencil": {
+    "zh": "DSH 的 OpenPencil 设计预览与编辑插件。",
+    "en": "OpenPencil design preview and editing plugin for DSH."
+  },
+  "Lyn-77/ProMentor": {
+    "zh": "把编程助手变成导师：扫描架构、生成章节、带你手写并判题。",
+    "en": "Turn your coding assistant into a mentor: scan architecture, chapters, write, and grade."
+  },
+  "icetomoyo/dsh_workflow": {
+    "zh": "把一次性多 Agent 调度升级为可保存、可治理、可恢复的 Workflow 层。",
+    "en": "Upgrade one-shot multi-agent dispatch into a durable, governable workflow layer."
+  },
+  "Ruler4396/dsh-launcher": {
+    "zh": "轻量 Windows 启动器：登录静默自启 + 最小 WebView2 窗口。",
+    "en": "Lightweight Windows launcher: silent autostart plus a minimal WebView2 window."
+  },
+  "omdsh-dev/dsh-genui": {
+    "zh": "在助手回复里渲染交互 UI：布局、图表、表单、Mermaid、3D。",
+    "en": "Render interactive UI in assistant replies: layout, charts, forms, Mermaid, 3D."
+  }
 }
