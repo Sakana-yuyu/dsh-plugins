@@ -1,57 +1,85 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DSH 插件目录</title>
   <meta name="description" content="DeepSeek Harness 插件目录：按 stars 排名的官方与社区插件。">
+  <script>try{var _th=localStorage.getItem("dsh-theme");if(_th==="dark"||_th==="light")document.documentElement.setAttribute("data-theme",_th)}catch(e){}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-:root{--bg:#061014;--bg-2:#0a181d;--card:#0d1f26;--line:rgba(80,220,200,.14);--ink:#e7f6f2;--muted:#8aa8a3;--teal:#2ee6c8;--teal-2:#7af0d8;--amber:#f0c36a;--shadow:0 18px 40px rgba(0,0,0,.35)}
+html[data-theme=light]{--bg:#f6f7fb;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e5e7eb;--acc:#2563eb;--acc2:#1d4ed8;--soft:#eff6ff;--star:#d97706;--shadow:0 1px 2px rgba(15,23,42,.05),0 10px 28px rgba(15,23,42,.06);--overlay:rgba(15,23,42,.45);--code:#f1f5f9}
+html[data-theme=dark]{--bg:#09090b;--card:#18181b;--ink:#fafafa;--muted:#a1a1aa;--line:#27272a;--acc:#60a5fa;--acc2:#93c5fd;--soft:#172554;--star:#fbbf24;--shadow:0 12px 32px rgba(0,0,0,.45);--overlay:rgba(0,0,0,.62);--code:#111113}
 *{box-sizing:border-box}html,body{margin:0;padding:0}
-body{font-family:"Noto Sans SC","Sora",sans-serif;color:var(--ink);background:radial-gradient(1200px 600px at 10% -10%,rgba(46,230,200,.12),transparent 50%),linear-gradient(180deg,#071318 0%,var(--bg) 40%,#050d10 100%);min-height:100vh}
-.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:28px 20px 80px}
+body{font-family:Inter,"Noto Sans SC",ui-sans-serif,system-ui,sans-serif;color:var(--ink);background:var(--bg);min-height:100vh}
+.wrap{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
 header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
 .brand{display:flex;gap:14px;align-items:center}
-.mark{width:46px;height:46px;border:1px solid var(--teal);border-radius:12px;display:grid;place-items:center;color:var(--teal);font-family:"IBM Plex Mono",monospace;font-weight:600;box-shadow:inset 0 0 18px rgba(46,230,200,.18)}
-h1{margin:0;font-family:Sora,"Noto Sans SC",sans-serif;font-size:34px;letter-spacing:-.03em}
+.mark{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:13px;letter-spacing:.02em;color:#fff;background:var(--acc)}
+h1{margin:0;font-size:30px;letter-spacing:-.03em;font-weight:700}
 .sub{color:var(--muted);margin:6px 0 0;font-size:14px}
-.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
-.lang button,.chip,button.tab{background:transparent;color:var(--ink);border:0;padding:8px 14px;cursor:pointer;font:inherit}
-.lang button.on,.chip.on,button.tab.on{background:rgba(46,230,200,.16);color:var(--teal-2)}
+.hdr-acts{display:flex;align-items:center;gap:10px}
+.lang,.ghost{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card)}
+.lang button,.ghost,.chip,button.tab,.btn{background:transparent;color:var(--ink);border:0;padding:8px 14px;cursor:pointer;font:inherit}
+.ghost{padding:8px 14px}
+.lang button.on,.chip.on,button.tab.on{background:var(--soft);color:var(--acc);font-weight:600}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0 16px}
 input[type=search]{flex:1;min-width:220px;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 14px;font:inherit}
+.btn{border:1px solid var(--line);border-radius:12px;background:var(--acc);color:#fff;font-weight:600}
+html[data-theme=dark] .btn{color:#0b1220}
 .tabs,.cats{display:flex;flex-wrap:wrap;gap:8px}
-.chip{border:1px solid var(--line);border-radius:999px;background:rgba(13,31,38,.8)}
+.chip{border:1px solid var(--line);border-radius:999px;background:var(--card)}
 .meta{color:var(--muted);font-size:13px;margin:0 0 18px}
-h2.sec{font-family:Sora,"Noto Sans SC",sans-serif;font-size:20px;margin:28px 0 12px;display:flex;align-items:baseline;gap:10px}
+h2.sec{font-size:18px;margin:28px 0 12px;display:flex;align-items:baseline;gap:10px;font-weight:650}
 h2.sec span{color:var(--muted);font-size:13px;font-weight:400}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
-.feat{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
-.card{background:linear-gradient(180deg,rgba(18,42,48,.92),var(--card));border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:100%}
-.cover{position:relative;aspect-ratio:16/8;background:#0b171c;overflow:hidden}
-.cover img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.05) contrast(1.05)}
-.rank{position:absolute;left:10px;top:10px;font-family:"IBM Plex Mono",monospace;background:rgba(6,16,20,.78);color:var(--teal);border:1px solid rgba(46,230,200,.35);border-radius:8px;padding:3px 8px;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.feat{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:100%;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
+.card:hover{transform:translateY(-2px)}
+.cover{position:relative;aspect-ratio:16/8;background:var(--code);overflow:hidden}
+.cover img{width:100%;height:100%;object-fit:cover;display:block}
+.rank{position:absolute;left:10px;top:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(15,23,42,.72);color:#fff;border-radius:8px;padding:3px 8px;font-size:12px}
 .body{padding:14px 14px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
-.name{font-family:Sora,"Noto Sans SC",sans-serif;font-weight:600;font-size:16px;line-height:1.3;word-break:break-all}
-.name a{color:inherit;text-decoration:none}
+.name{font-weight:650;font-size:16px;line-height:1.3;word-break:break-all}
+.author{color:var(--muted);font-size:12px}
 .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .badge{font-size:11px;border-radius:999px;padding:3px 8px;border:1px solid var(--line);color:var(--muted)}
-.badge.off{color:#061014;background:var(--teal);border-color:transparent;font-weight:700}
-.stars{font-family:"IBM Plex Mono",monospace;color:var(--amber);font-size:12px}
-.desc{color:#c7ddd8;font-size:13px;line-height:1.55;min-height:3.1em}
+.badge.off{color:#fff;background:var(--acc);border-color:transparent;font-weight:700}
+html[data-theme=dark] .badge.off{color:#0b1220}
+.stars{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--star);font-size:12px}
+.desc{color:var(--muted);font-size:13px;line-height:1.55;min-height:3.1em}
 .acts{display:flex;gap:8px;margin-top:auto}
-.acts button,.acts a{flex:1;text-align:center;text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--teal-2);background:rgba(46,230,200,.06);font-size:13px;cursor:pointer}
-.cmd{display:block;font-size:11px;line-height:1.4;padding:8px;overflow:auto;color:var(--teal-2);white-space:nowrap}
+.acts button,.acts a{flex:1;text-align:center;text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--acc);background:var(--soft);font-size:13px;cursor:pointer}
+code.cmd{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.4;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--acc);background:var(--code);border-radius:8px;cursor:pointer}
 .official-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.off-mini{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(13,31,38,.85);text-decoration:none;color:inherit}
+.off-mini{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--card);text-decoration:none;color:inherit;box-shadow:var(--shadow)}
 .off-mini img{width:64px;height:36px;object-fit:cover;border-radius:6px}
+.pager{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:22px 0 8px}
+.pager button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer;font:inherit}
+.pager button.on{background:var(--acc);color:#fff;border-color:transparent}
+html[data-theme=dark] .pager button.on{color:#0b1220}
+.pager button:disabled{opacity:.4;cursor:not-allowed}
+.pg-meta{color:var(--muted);font-size:13px;margin-left:6px}
 footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
-code,pre{font-family:"IBM Plex Mono",monospace;background:rgba(46,230,200,.08);padding:2px 6px;border-radius:6px}
-.toast{position:fixed;bottom:18px;right:18px;background:#12343a;color:var(--teal-2);border:1px solid var(--teal);padding:10px 14px;border-radius:10px;display:none;z-index:5}
-@media(max-width:640px){h1{font-size:26px}.feat{grid-template-columns:1fr}}
+footer a{color:var(--acc)}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+footer code{background:var(--code);padding:2px 6px;border-radius:6px}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;display:none;z-index:40;box-shadow:var(--shadow)}
+.modal{position:fixed;inset:0;background:var(--overlay);z-index:30;display:flex;align-items:flex-start;justify-content:center;padding:36px 16px;overflow:auto}
+.modal[hidden]{display:none!important}
+.mbox{background:var(--card);color:var(--ink);max-width:880px;width:100%;border-radius:16px;padding:28px 28px 32px;position:relative;border:1px solid var(--line);box-shadow:var(--shadow)}
+.x{position:absolute;right:12px;top:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit}
+.md{line-height:1.65;font-size:15px;overflow-wrap:anywhere}
+.md img{max-width:100%;height:auto;border-radius:8px}
+.md pre{overflow:auto;background:var(--code);padding:12px;border-radius:8px}
+.md a{color:var(--acc)}
+.mdetail{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+.mdetail h3{margin:0 0 8px;font-size:18px}
+@media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){h1{font-size:24px}.grid,.feat{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -64,14 +92,17 @@ code,pre{font-family:"IBM Plex Mono",monospace;background:rgba(46,230,200,.08);p
         <p class="sub" id="subtitle">按 GitHub stars 排名的 DeepSeek Harness 插件，来自 topic:dsh-plugin</p>
       </div>
     </div>
-    <div class="lang" role="group" aria-label="language">
-      <button id="btn-zh" class="on" type="button">中文</button>
-      <button id="btn-en" type="button">EN</button>
+    <div class="hdr-acts">
+      <button type="button" class="ghost" id="btn-theme">深色</button>
+      <div class="lang" role="group" aria-label="language">
+        <button id="btn-zh" class="on" type="button">中文</button>
+        <button id="btn-en" type="button">EN</button>
+      </div>
     </div>
   </header>
   <div class="toolbar">
     <input id="q" type="search" placeholder="搜索插件、作者、描述…">
-    <button class="tab" id="btn-search" type="button">搜索</button>
+    <button class="btn" id="btn-search" type="button">搜索</button>
     <div class="tabs">
       <button class="tab on" data-scope="all" type="button">全部</button>
       <button class="tab" data-scope="official" type="button">官方</button>
@@ -86,6 +117,7 @@ code,pre{font-family:"IBM Plex Mono",monospace;background:rgba(46,230,200,.08);p
   <div class="official-strip" id="official-row"></div>
   <h2 class="sec" id="all-title">全部插件 <span id="all-sub">按 stars 降序</span></h2>
   <div class="grid" id="list"></div>
+  <div class="pager" id="pager"></div>
   <footer>
     <p id="foot-clone">克隆本目录：<code>git clone https://github.com/Sakana-yuyu/dsh-plugins.git</code></p>
     <p id="foot-install">安装插件：<code>dsh plugin --profile web add "github:owner/repo"</code></p>
@@ -93,6 +125,13 @@ code,pre{font-family:"IBM Plex Mono",monospace;background:rgba(46,230,200,.08);p
   </footer>
 </div>
 <div class="toast" id="toast">已复制</div>
+<div class="modal" id="modal" hidden>
+  <div class="mbox">
+    <button type="button" class="x" id="modal-x">关闭</button>
+    <div class="md" id="modal-md"></div>
+    <div class="mdetail" id="modal-details"></div>
+  </div>
+</div>
 <script>
 const I18N = {
   zh: {
@@ -104,8 +143,14 @@ const I18N = {
     off: "官方推荐", offSub: "deepseek-ai 核心与 in-tree 包",
     allTitle: "全部插件", allSub: "按 stars 降序",
     stats: (n,u) => `共 ${n} 个插件 · 更新于 ${u}`,
-    clone: "克隆", install: "安装", copied: "已复制克隆地址", copiedInstall: "已复制安装命令", github: "GitHub", searchBtn: "搜索",
-    catAll: "全部分类"
+    clone: "克隆", install: "安装", copied: "已复制克隆地址", copiedInstall: "已复制安装命令",
+    github: "GitHub", searchBtn: "搜索", catAll: "全部分类",
+    themeLight: "浅色", themeDark: "深色",
+    author: "作者", close: "关闭",
+    readmeLoading: "正在加载 README…",
+    copyTitle: "点击复制",
+    prev: "上一页", next: "下一页",
+    page: (c,n) => `${c} / ${n}`
   },
   en: {
     title: "DSH Plugin Catalog",
@@ -116,24 +161,37 @@ const I18N = {
     off: "Official picks", offSub: "deepseek-ai core and in-tree packages",
     allTitle: "All plugins", allSub: "Sorted by stars",
     stats: (n,u) => `${n} plugins · updated ${u}`,
-    clone: "Clone", install: "Install", copied: "Clone URL copied", copiedInstall: "Install command copied", github: "GitHub", searchBtn: "Search",
-    catAll: "All categories"
+    clone: "Clone", install: "Install", copied: "Clone URL copied", copiedInstall: "Install command copied",
+    github: "GitHub", searchBtn: "Search", catAll: "All categories",
+    themeLight: "Light", themeDark: "Dark",
+    author: "Author", close: "Close",
+    readmeLoading: "Loading README…",
+    copyTitle: "Click to copy",
+    prev: "Prev", next: "Next",
+    page: (c,n) => `${c} / ${n}`
   }
 };
 let lang = localStorage.getItem("dsh-lang") || "zh";
+let theme = document.documentElement.getAttribute("data-theme") || "light";
 let scope = "all";
 let cat = "all";
+let page = 1;
+const PAGE_SIZE = 12;
 let catalog = [];
 let official = null;
+let modalFull = "";
+const mdCache = new Map();
 const $ = (id) => document.getElementById(id);
 function t() { return I18N[lang]; }
-function esc(s){s=String(s||"");return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function esc(s){s=String(s||"");return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
 function stars(n){n=Number(n)||0;if(n>=10000)return Math.round(n/1000)+"k";if(n>=1000)return (n/1000).toFixed(1)+"k";return String(n);}
+function ownerOf(p){return String(p.full_name||"").split("/")[0];}
+function ogUrl(full){return "https://opengraph.githubassets.com/1/"+full;}
 const CATS = {official:{zh:"官方核心",en:"Official core"},ui:{zh:"UI 与皮肤",en:"UI & skins"},vision:{zh:"视觉",en:"Vision"},tui:{zh:"终端 TUI",en:"Terminal TUI"},desktop:{zh:"桌面客户端",en:"Desktop"},browser:{zh:"浏览器",en:"Browser"},workflow:{zh:"工作流与多智能体",en:"Workflow & agents"},tools:{zh:"工具与技能",en:"Tools & skills"},search:{zh:"搜索与研究",en:"Search & research"},dev:{zh:"开发与代码",en:"Dev & code"},awesome:{zh:"目录与精选",en:"Awesome lists"},other:{zh:"其他",en:"Other"}};
 function expand(p) {
   if (p.full_name && p.name) return p;
-  const cat = p.c || p.category || "other";
-  const labels = CATS[cat] || CATS.other;
+  const c = p.c || p.category || "other";
+  const labels = CATS[c] || CATS.other;
   const full = p.f || p.full_name || "";
   return {
     rank: p.r || p.rank, name: p.n || p.name, full_name: full,
@@ -141,14 +199,14 @@ function expand(p) {
     description_zh: p.z || p.description_zh, description_en: p.e || p.description_en,
     description: p.z || p.e || p.description,
     stars: p.s || p.stars, language: p.l || p.language,
-    official: !!(p.o || p.official), category: cat,
+    official: !!(p.o || p.official), category: c,
     category_zh: p.category_zh || labels.zh, category_en: p.category_en || labels.en,
     clone_url: p.clone_url || ("https://github.com/" + full + ".git")
   };
 }
 function installCmd(p) {
   const spec = (p.full_name || "").replace(/^\/+/, "");
-  return 'dsh plugin --profile web add "github:' + spec + '"';
+  return "dsh plugin --profile web add \"github:" + spec + "\"";
 }
 function desc(p) { return lang === "zh" ? (p.description_zh || p.description) : (p.description_en || p.description); }
 function catLabel(p) { return lang === "zh" ? (p.category_zh || p.category) : (p.category_en || p.category); }
@@ -157,8 +215,8 @@ function applyLang() {
   $("title").textContent = i.title;
   $("subtitle").textContent = i.subtitle;
   $("q").placeholder = i.search;
-  if ($("btn-search")) $("btn-search").textContent = i.searchBtn;
-  document.querySelectorAll(".tab").forEach(b => { b.textContent = i[b.dataset.scope]; });
+  $("btn-search").textContent = i.searchBtn;
+  document.querySelectorAll(".tab[data-scope]").forEach(b => { b.textContent = i[b.dataset.scope]; });
   $("rec-title").firstChild.textContent = i.rec + " ";
   $("rec-sub").textContent = i.recSub;
   $("off-title").firstChild.textContent = i.off + " ";
@@ -167,20 +225,26 @@ function applyLang() {
   $("all-sub").textContent = i.allSub;
   $("btn-zh").classList.toggle("on", lang==="zh");
   $("btn-en").classList.toggle("on", lang==="en");
+  $("btn-theme").textContent = theme === "light" ? i.themeDark : i.themeLight;
+  $("modal-x").textContent = i.close;
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
 }
-function card(p, large) {
+function card(p) {
   const i = t();
-  const img = p.image || ("https://opengraph.githubassets.com/1/" + p.full_name);
+  const full = p.full_name || "";
+  const img = p.image || ogUrl(full);
   const off = p.official ? `<span class="badge off">${lang==="zh"?"官方":"Official"}</span>` : "";
-  return `<article class="card">
-    <div class="cover"><span class="rank">#${p.rank||""}</span><img alt="" src="${esc(img)}" loading="lazy"></div>
+  const cmd = installCmd(p);
+  const author = ownerOf(p);
+  return `<article class="card" data-full="${esc(full)}">
+    <div class="cover" data-full="${esc(full)}"><span class="rank">#${p.rank||""}</span><img alt="" src="${esc(img)}" loading="lazy"></div>
     <div class="body">
-      <div class="name"><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${esc(p.name)}</a></div>
-      <div class="row"><span class="stars">★ ${stars(p.stars)}</span>${off}<span class="badge">${esc(catLabel(p))}</span><span class="badge">${esc(p.language||"—")}</span></div>
+      <div class="name">${esc(p.name)}</div>
+      <div class="author" title="${esc(i.author)}">@${esc(author)}</div>
+      <div class="row"><span class="stars">★ ${stars(p.stars)}</span>${off}<span class="badge">${esc(catLabel(p))}</span><span class="badge">${esc(p.language||"-")}</span></div>
       <div class="desc">${esc(desc(p))}</div>
-      <code class="cmd">${esc(installCmd(p))}</code>
-      <div class="acts"><button type="button" data-clone="${esc(p.clone_url)}">${i.clone}</button><button type="button" data-install="${esc(installCmd(p))}">${i.install}</button><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${i.github}</a></div>
+      <code class="cmd" data-install="${esc(cmd)}" title="${esc(i.copyTitle)}">${esc(cmd)}</code>
+      <div class="acts"><button type="button" data-clone="${esc(p.clone_url)}">${i.clone}</button><button type="button" data-install="${esc(cmd)}">${i.install}</button><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${i.github}</a></div>
     </div></article>`;
 }
 function filtered() {
@@ -190,7 +254,7 @@ function filtered() {
     if (scope === "community" && p.official) return false;
     if (cat !== "all" && p.category !== cat) return false;
     if (!q) return true;
-    const blob = [p.name,p.full_name,p.description,p.description_zh,p.description_en,(p.topics||[]).join(" ")].join(" ").toLowerCase();
+    const blob = [p.name,p.full_name,p.description,p.description_zh,p.description_en,ownerOf(p),(p.topics||[]).join(" ")].join(" ").toLowerCase();
     return blob.includes(q);
   });
 }
@@ -207,35 +271,217 @@ function renderOfficial() {
   const items = [official.core].concat(official.bundles || []).concat((official.groups || []).slice(0, 8));
   $("official-row").innerHTML = items.map(p => {
     const d = lang==="zh" ? (p.description_zh||"") : (p.description_en||"");
-    const img = p.image || "https://opengraph.githubassets.com/1/deepseek-ai/deepseek-harness";
+    const img = p.image || ogUrl("deepseek-ai/deepseek-harness");
     return `<a class="off-mini" href="${esc(p.html_url)}" target="_blank" rel="noopener"><img src="${esc(img)}" alt=""><div><strong>${esc(p.name)}</strong><div class="sub">${esc(d)}</div></div></a>`;
   }).join("");
+}
+function renderPager(pages) {
+  const i = t();
+  const el = $("pager");
+  if (pages <= 1) { el.innerHTML = ""; return; }
+  let a = Math.max(1, page - 2), b = Math.min(pages, page + 2);
+  const nums = [];
+  if (a > 1) nums.push(1);
+  if (a > 2) nums.push("…");
+  for (let n = a; n <= b; n++) nums.push(n);
+  if (b < pages - 1) nums.push("…");
+  if (b < pages) nums.push(pages);
+  el.innerHTML =
+    `<button type="button" data-pg="${page-1}" ${page<=1?"disabled":""}>${i.prev}</button>` +
+    nums.map(n => n === "…" ? `<span class="pg-meta">…</span>` : `<button type="button" data-pg="${n}" class="${n===page?"on":""}">${n}</button>`).join("") +
+    `<button type="button" data-pg="${page+1}" ${page>=pages?"disabled":""}>${i.next}</button>` +
+    `<span class="pg-meta">${i.page(page, pages)}</span>`;
 }
 function render() {
   applyLang();
   renderCats();
   const rows = filtered();
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  if (page > pages) page = pages;
   const latest = catalog[0] && catalog[0].updated_at ? catalog[0].updated_at.replace("T"," ").replace("Z"," UTC") : "";
   $("stats").textContent = t().stats(rows.length, latest);
-  const top = rows.slice(0, 10);
-  $("featured").innerHTML = top.map(p => card(p, true)).join("");
-  $("list").innerHTML = rows.map(p => card(p, false)).join("");
+  $("featured").innerHTML = rows.slice(0, 10).map(card).join("");
+  $("list").innerHTML = rows.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE).map(card).join("");
+  renderPager(pages);
   renderOfficial();
+  bindCovers();
+  if (modalFull && !$("modal").hidden) openModal(modalFull);
 }
 function toast(msg) { const el=$("toast"); el.textContent=msg; el.style.display="block"; setTimeout(()=>el.style.display="none", 1600); }
+function getRaw(full, file) {
+  return fetch("https://raw.githubusercontent.com/" + full + "/HEAD/" + file).then(r => r.ok ? r.text() : "").catch(() => "");
+}
+function fetchMd(full) {
+  const key = full + ":" + lang;
+  if (mdCache.has(key)) return mdCache.get(key);
+  const job = (async () => {
+    let md = await getRaw(full, "README.md");
+    if (lang === "zh") {
+      const zh = await getRaw(full, "README.zh-CN.md") || await getRaw(full, "README.zh.md");
+      if (zh) md = zh;
+    }
+    return md || "";
+  })();
+  mdCache.set(key, job);
+  return job;
+}
+function extractImgs(md, full) {
+  const out = [];
+  const add = (u) => {
+    if (!u) return;
+    u = String(u).trim().replace(/^<|>$/g, "").split(/\s+/)[0].replace(/["']/g, "");
+    if (!u || u.startsWith("#") || /^data:/i.test(u)) return;
+    const low = u.toLowerCase();
+    if (/shields\.io|badge|github\.com\/actions|camo\.githubusercontent/.test(low)) return;
+    if (!/^https?:\/\//i.test(u)) u = "https://raw.githubusercontent.com/" + full + "/HEAD/" + u.replace(/^\.?\//, "");
+    if (!out.includes(u)) out.push(u);
+  };
+  String(md||"").replace(/!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_, u) => { add(u); return ""; });
+  String(md||"").replace(/<img[^>]+src=["']([^"']+)["']/gi, (_, u) => { add(u); return ""; });
+  return out;
+}
+let io = null;
+function bindCovers() {
+  if (!io) {
+    io = new IntersectionObserver(async (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const cover = e.target;
+        io.unobserve(cover);
+        const full = cover.dataset.full;
+        if (!full) continue;
+        try {
+          const md = await fetchMd(full);
+          const imgs = extractImgs(md, full);
+          const previews = imgs.length ? imgs : [ogUrl(full)];
+          cover.dataset.previews = JSON.stringify(previews);
+          const img = cover.querySelector("img");
+          if (img && imgs[0]) img.src = imgs[0];
+        } catch (err) {
+          cover.dataset.previews = JSON.stringify([ogUrl(full)]);
+        }
+      }
+    }, { rootMargin: "160px" });
+  }
+  document.querySelectorAll(".cover[data-full]").forEach(el => io.observe(el));
+}
+function startRot(cardEl) {
+  const cover = cardEl.querySelector(".cover");
+  if (!cover || !cover.dataset.previews) return;
+  let list; try { list = JSON.parse(cover.dataset.previews); } catch (e) { return; }
+  if (!list || list.length < 2) return;
+  const img = cover.querySelector("img");
+  let i = 0;
+  stopRot(cardEl, true);
+  cardEl._rot = setInterval(() => { i = (i + 1) % list.length; if (img) img.src = list[i]; }, 2000);
+}
+function stopRot(cardEl, keep) {
+  if (cardEl._rot) { clearInterval(cardEl._rot); cardEl._rot = 0; }
+  if (keep) return;
+  const cover = cardEl.querySelector(".cover");
+  if (!cover || !cover.dataset.previews) return;
+  let list; try { list = JSON.parse(cover.dataset.previews); } catch (e) { return; }
+  const img = cover.querySelector("img");
+  if (img && list && list[0]) img.src = list[0];
+}
+function loadMarked() {
+  if (window.marked) return Promise.resolve();
+  return Promise.resolve();
+}
+function stripUnsafe(s) {
+  var tag = "scr" + "ipt";
+  return String(s).replace(new RegExp("<" + tag + "[\\s\\S]*?</" + tag + ">", "gi"), "").replace(/\son\w+\s*=/gi, " ");
+}
+function mdInline(s) {
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, function(_, a, u) {
+    if (/shields\.io|badge|github\.com\/actions|camo/.test(u)) return "";
+    return '<img alt="' + esc(a) + '" src="' + esc(u) + '">';
+  });
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(_, a, u) {
+    return '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + a + "</a>";
+  });
+  s = s.replace(/`([^`]+)`/g, function(_, c) { return "<code>" + esc(c) + "</code>"; });
+  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  return s;
+}
+function renderMd(md) {
+  var raw = stripUnsafe(String(md || "").replace(/\r\n/g, "\n"));
+  if (window.marked) return stripUnsafe(marked.parse(raw));
+  raw = raw.replace(/```[\w-]*\n([\s\S]*?)```/g, function(_, c) { return "<pre><code>" + esc(c) + "</code></pre>"; });
+  var lines = raw.split("\n"), out = [], buf = [];
+  function flush() { if (buf.length) { out.push("<p>" + mdInline(buf.join("<br>")) + "</p>"); buf = []; } }
+  lines.forEach(function(line) {
+    var h = /^(#{1,6})\s+(.+)$/.exec(line);
+    if (h) { flush(); var n = h[1].length; out.push("<h" + n + ">" + mdInline(h[2]) + "</h" + n + ">"); return; }
+    if (/^\s*[-*]\s+/.test(line)) { flush(); out.push("<li>" + mdInline(line.replace(/^\s*[-*]\s+/, "")) + "</li>"); return; }
+    if (line.indexOf("<pre>") === 0 || /<\/pre>$/.test(line)) { flush(); out.push(line); return; }
+    if (!line.trim()) { flush(); return; }
+    buf.push(line);
+  });
+  flush();
+  return stripUnsafe(out.join("").replace(/(<li>[\s\S]*?<\/li>)+/g, "<ul>$&</ul>"));
+}
+function openModal(full) {
+  const p = catalog.find(x => x.full_name === full);
+  if (!p) return;
+  modalFull = full;
+  const i = t();
+  $("modal").hidden = false;
+  $("modal-x").textContent = i.close;
+  $("modal-md").innerHTML = "<p>" + esc(i.readmeLoading) + "</p>";
+  const off = p.official ? '<span class="badge off">' + (lang==="zh"?"官方":"Official") + "</span>" : "";
+  $("modal-details").innerHTML =
+    "<h3>" + esc(p.name) + "</h3>" +
+    '<div class="author">@' + esc(ownerOf(p)) + "</div>" +
+    '<div class="row" style="margin:8px 0"><span class="stars">★ ' + stars(p.stars) + "</span>" + off +
+    '<span class="badge">' + esc(catLabel(p)) + '</span><span class="badge">' + esc(p.language||"-") + "</span></div>" +
+    "<p>" + esc(desc(p)||"") + "</p>" +
+    '<code class="cmd" data-install="' + esc(installCmd(p)) + '" title="' + esc(i.copyTitle) + '">' + esc(installCmd(p)) + "</code>";
+  Promise.all([loadMarked(), fetchMd(full)]).then(function(res) {
+    if (modalFull !== full) return;
+    $("modal-md").innerHTML = res[1] ? renderMd(res[1]) : "<p></p>";
+  });
+}
+function closeModal() { $("modal").hidden = true; modalFull = ""; }
+function setTheme(next) {
+  theme = next;
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("dsh-theme", theme);
+  $("btn-theme").textContent = theme === "light" ? t().themeDark : t().themeLight;
+}
 document.addEventListener("click", (e) => {
+  if (e.target.id === "modal") { closeModal(); return; }
+  if (e.target.id === "modal-x") { closeModal(); return; }
   const b = e.target.closest("[data-clone]");
   if (b) { navigator.clipboard.writeText(b.dataset.clone).then(()=>toast(t().copied)); return; }
   const inst = e.target.closest("[data-install]");
   if (inst) { navigator.clipboard.writeText(inst.dataset.install).then(()=>toast(t().copiedInstall)); return; }
-  if (e.target.closest("#btn-search")) { render(); $("list").scrollIntoView({behavior:"smooth", block:"start"}); return; }
-  const tab = e.target.closest(".tab");
-  if (tab) { scope = tab.dataset.scope; document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x===tab)); render(); }
+  if (e.target.closest("#btn-search")) { page = 1; render(); $("list").scrollIntoView({behavior:"smooth", block:"start"}); return; }
+  if (e.target.closest("#btn-theme")) { setTheme(theme === "light" ? "dark" : "light"); return; }
+  const pg = e.target.closest("[data-pg]");
+  if (pg && !pg.disabled) {
+    const n = Number(pg.dataset.pg);
+    if (n >= 1) { page = n; render(); $("list").scrollIntoView({behavior:"smooth", block:"start"}); }
+    return;
+  }
+  const tab = e.target.closest(".tab[data-scope]");
+  if (tab) { scope = tab.dataset.scope; page = 1; document.querySelectorAll(".tab[data-scope]").forEach(x=>x.classList.toggle("on", x===tab)); render(); return; }
   const chip = e.target.closest(".chip");
-  if (chip) { cat = chip.dataset.cat; render(); }
+  if (chip) { cat = chip.dataset.cat; page = 1; render(); return; }
+  if (e.target.closest("button, a, .cmd")) return;
+  const cardEl = e.target.closest(".card");
+  if (cardEl && cardEl.dataset.full) openModal(cardEl.dataset.full);
 });
-$("q").addEventListener("input", render);
-$("q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); render(); $("list").scrollIntoView({behavior:"smooth", block:"start"}); } });
+document.addEventListener("mouseenter", (e) => {
+  if (e.target.classList && e.target.classList.contains("card")) startRot(e.target);
+}, true);
+document.addEventListener("mouseleave", (e) => {
+  if (e.target.classList && e.target.classList.contains("card")) stopRot(e.target);
+}, true);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+$("q").addEventListener("input", () => { page = 1; render(); });
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); page = 1; render(); $("list").scrollIntoView({behavior:"smooth", block:"start"}); } });
 $("btn-zh").addEventListener("click", () => { lang="zh"; localStorage.setItem("dsh-lang", lang); render(); });
 $("btn-en").addEventListener("click", () => { lang="en"; localStorage.setItem("dsh-lang", lang); render(); });
 const PARTS = Array.from({length:26}, (_,i) => "s"+(i+1)+".json");
@@ -243,7 +489,7 @@ Promise.all([
   Promise.all(PARTS.map(f => fetch(f).then(r => r.ok ? r.json() : []).catch(() => []))).then(parts => {
     const flat = parts.flat().map(expand);
     if (flat.length >= 200) return flat;
-    return fetch("catalog.json").then(r => r.json());
+    return fetch("catalog.json").then(r => r.json()).then(d => (Array.isArray(d)?d:[]).map(expand));
   }),
   fetch("official.json").then(r => r.json())
 ]).then(([c, o]) => { catalog = c; official = o; render(); })
