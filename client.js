@@ -144,3 +144,149 @@ window.__ModuleLoader__.load({
         self: !!(row && row.self)
       };
     }
+
+    function Pager(props) {
+      var cur = props.cur;
+      var pages = props.pages;
+      var setPage = props.setPage;
+      var jp = useState(String(cur));
+      var jump = jp[0], setJump = jp[1];
+      useEffect(function () { setJump(String(cur)); }, [cur]);
+      function go(n) {
+        n = parseInt(n, 10);
+        if (!(n > 0)) n = 1;
+        if (n > pages) n = pages;
+        setPage(n);
+      }
+      return h("div", {
+        style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }
+      },
+        h("button", {
+          type: "button",
+          disabled: cur <= 1,
+          onClick: function () { go(1); },
+          style: btnStyle(cur <= 1, false)
+        }, "首页"),
+        h("button", {
+          type: "button",
+          disabled: cur <= 1,
+          onClick: function () { go(cur - 1); },
+          style: btnStyle(cur <= 1, false)
+        }, "上一页"),
+        h("form", {
+          onSubmit: function (e) { if (e && e.preventDefault) e.preventDefault(); go(jump); },
+          style: { display: "flex", alignItems: "center", gap: 6 }
+        },
+          h("input", {
+            value: jump,
+            onChange: function (e) { setJump(e.target.value); },
+            inputMode: "numeric",
+            title: "输入页码后回车或点跳转",
+            style: {
+              width: 52,
+              padding: "4px 6px",
+              borderRadius: 6,
+              border: "1px solid " + LINE,
+              background: BG,
+              color: FG,
+              textAlign: "center",
+              fontSize: 12,
+              outline: "none"
+            }
+          }),
+          h("span", { style: { color: MUTED, fontSize: 12 } }, "/ " + pages),
+          h("button", { type: "submit", style: btnStyle(false, true) }, "跳转")
+        ),
+        h("button", {
+          type: "button",
+          disabled: cur >= pages,
+          onClick: function () { go(cur + 1); },
+          style: btnStyle(cur >= pages, false)
+        }, "下一页"),
+        h("button", {
+          type: "button",
+          disabled: cur >= pages,
+          onClick: function () { go(pages); },
+          style: btnStyle(cur >= pages, false)
+        }, "末页")
+      );
+    }
+
+    function UpdateBanner(props) {
+      var info = props.info;
+      var busy = props.busy;
+      var onUpdate = props.onUpdate;
+      var note = props.note;
+      if (note) {
+        return h("div", {
+          style: {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            padding: "10px 12px",
+            marginBottom: 12,
+            borderRadius: 8,
+            border: "1px solid " + (note.ok ? OK : ERR),
+            color: note.ok ? OK : ERR,
+            background: BG,
+            fontWeight: 600
+          }
+        }, note.text);
+      }
+      if (!info || !info.newer) return null;
+      return h("div", {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          padding: "10px 12px",
+          marginBottom: 12,
+          borderRadius: 8,
+          border: "1px solid " + BRAND,
+          background: BG
+        }
+      },
+        h("div", { style: { minWidth: 0 } },
+          h("div", { style: { fontWeight: 650, color: BRAND } }, "目录插件有新版本"),
+          h("div", { style: { fontSize: 12, color: MUTED, marginTop: 2 } },
+            "当前 " + (info.current || "-") + " → " + (info.latestSha || "最新") + "，更新后请完全退出 dsh-desktop 再打开")
+        ),
+        h("button", {
+          type: "button",
+          disabled: !!busy,
+          onClick: onUpdate,
+          style: btnStyle(!!busy, true)
+        }, busy ? "更新中…" : "立即更新")
+      );
+    }
+
+    function RestartBanner(props) {
+      if (!props.show) return null;
+      return h("div", {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          padding: "12px 14px",
+          marginBottom: 12,
+          borderRadius: 8,
+          border: "1px solid " + BRAND,
+          background: BG
+        }
+      },
+        h("div", { style: { minWidth: 0 } },
+          h("div", { style: { fontWeight: 700, color: BRAND, fontSize: 14 } }, "需要重启"),
+          h("div", { style: { fontSize: 12, color: FG, marginTop: 4, lineHeight: "18px" } },
+            "请完全退出 dsh-desktop 再打开，刚安装或卸载的插件才会生效。"
+          )
+        ),
+        h("button", {
+          type: "button",
+          onClick: props.onDismiss,
+          style: btnStyle(false, true)
+        }, "知道了")
+      );
+    }
