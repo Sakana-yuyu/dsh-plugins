@@ -9,6 +9,66 @@ QUERY = "topic:dsh-plugin"
 PER_PAGE = 100
 MAX_PAGES = 10
 
+OFFICIAL_GROUPS = [
+    ("core", "产品 API 主干：会话、提示词、工具、agent 服务与循环", "Product API spine: session, prompt, tools, agent services and loop"),
+    ("api", "Remote BFF 装配与 Typert RPC 网关", "Remote BFF assembly and Typert RPC gateway"),
+    ("typert", "类型图生成、产物加载与运行时注册表", "Type-graph generation, artifact loading, runtime registry"),
+    ("goal", "同会话 goal 的持久化与生命周期", "In-session goal persistence and lifecycle"),
+    ("schedule", "仅限会话内的定时后续操作", "In-session scheduled follow-ups"),
+    ("feedback", "人类反馈", "Human feedback"),
+    ("identity", "共享匿名身份", "Shared anonymous identity"),
+    ("llm", "LLM 能力系列：抽象服务 + 提供方适配器", "LLM capability family: abstract service + provider adapters"),
+    ("e2b", "E2B 提供方", "E2B provider"),
+    ("subprocess", "子进程能力系列", "Subprocess capability family"),
+    ("shell", "Bash 能力系列：执行器、本地实现、面向模型的工具", "Bash capability family: executor, local impl, model-facing tools"),
+    ("terminal", "持久 PTY 能力系列", "Persistent PTY capability family"),
+    ("code-runtime", "代码执行能力系列", "Code-execution capability family"),
+    ("sandbox", "进程限制 seam；bwrap/Landlock/Seatbelt 后端", "Process-limit seam; bwrap/Landlock/Seatbelt backends"),
+    ("fs", "文件系统能力系列", "Filesystem capability family"),
+    ("lsp", "LSP 能力系列", "LSP capability family"),
+]
+
+OFFICIAL_GROUPS += [
+    ("skill", "skill 能力系列：提供方注册表与目录", "Skill capability family: provider registry and catalog"),
+    ("compaction", "压缩（compaction）能力系列", "Compaction capability family"),
+    ("context", "模型可见请求上下文", "Model-visible request context"),
+    ("subagent", "subagent 能力系列与委托工具", "Subagent capability family and delegation tools"),
+    ("jobs", "通用后台任务运行时", "Generic background job runtime"),
+    ("workflow", "工作流 seam 与面向模型的 workflow/ralph 工具", "Workflow seam and model-facing workflow/ralph tools"),
+    ("web", "Web 能力系列：搜索／获取与面向模型的 Web 工具", "Web capability family: search/fetch and model-facing web tools"),
+    ("attachment", "持久附件标识与本地内容寻址存储", "Persistent attachments and content-addressed storage"),
+    ("spill", "spill 能力系列：存储 seam 与工具结果溢出", "Spill capability family: storage seam and tool-result overflow"),
+    ("todo", "面向模型的 todo_write 工具", "Model-facing todo_write tool"),
+    ("plan", "Plan 协作状态", "Plan collaboration state"),
+    ("preset", "由 preset cordis.yml 按会话组装 agent", "Assemble agents per session from preset cordis.yml"),
+    ("guard", "循环卫生守卫", "Loop hygiene guards"),
+    ("bundle", "可安装的 dsh --profile 补丁层", "Installable dsh --profile patch layers"),
+    ("extensions", "agent 运行时自修改：插件挂载／卸载", "Agent runtime self-modification: mount/unmount plugins"),
+    ("hooks", "钩子桥接 + Claude Code／Codex 线协议", "Hook bridge + Claude Code/Codex wire protocol"),
+]
+
+OFFICIAL_GROUPS += [
+    ("session", "持久会话数据平面", "Persistent session data plane"),
+    ("session-query", "会话检索：血缘、语义过滤、全文搜索", "Session retrieval: lineage, semantic filter, full-text search"),
+    ("settings", "用户设置 seam + 基于文件的提供方", "User settings seam + file-based provider"),
+    ("credentials", "凭据引用 seam + 环境变量／.env 提供方", "Credential-ref seam + env/.env provider"),
+    ("storage", "非会话存储中枢", "Non-session storage hub"),
+    ("workspace", "Workspace 实体", "Workspace entity"),
+    ("sdk", "进程外运行时 SDK", "Out-of-process runtime SDK"),
+    ("acp", "面向自动化的 ACP 服务器", "Automation-facing ACP server"),
+    ("interaction", "人机协作平面：批准、权限、询问用户", "Human collaboration: approvals, permissions, ask-user"),
+    ("boot", "共享的 app bin 启动粘合层", "Shared app-bin boot glue"),
+    ("host", "web GUI 宿主半侧：API 网关 + HTTP 路由", "Web GUI host half: API gateway + HTTP router"),
+    ("client", "web GUI 浏览器半侧", "Web GUI browser half"),
+    ("examples", "演示组合包", "Demo composition packages"),
+    ("test-support", "测试支持基础设施", "Test-support infrastructure"),
+    ("util", "组间共享的低层零依赖工具", "Shared low-level zero-dep utilities"),
+]
+OFFICIAL_BUNDLES = [
+    ("base", "packages/bundle/base", "每个 profile 最先叠加的共享核心层", "Shared core layer every profile applies first"),
+    ("web-app", "packages/bundle/web-app", "浏览器界面：web 补丁层 + 运行时粘合插件", "Browser surface: web patch layer + runtime glue"),
+    ("headless", "packages/bundle/headless", "基于 base 的一次性任务模式，无 Host / Web 层", "One-shot task mode over base, no Host or Web layer"),
+]
 CATEGORIES = [
     ("official", "官方核心", "Official core"),
     ("ui", "UI 与皮肤", "UI & skins"),
@@ -123,7 +183,7 @@ def fetch_all(token):
                 continue
             seen.add(key)
             items.append(it)
-        print(f"  got {len(batch)} (total {len(items)} / {data.get('total_count')})", file=sys.stderr)
+        print(f"  got {len(batch)} (total {len(items)} / {data.get("total_count")})", file=sys.stderr)
         if len(batch) < PER_PAGE:
             break
         time.sleep(0.35 if token else 2.0)
@@ -156,6 +216,7 @@ def to_plugin(it, rank, translations):
         "image": f"https://opengraph.githubassets.com/1/{full}" if full else "",
         "topics": it.get("topics") or [],
         "updated_at": it.get("updated_at") or "",
+        "default_branch": it.get("default_branch") or "main",
     }
 
 def main():
