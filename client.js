@@ -1,1 +1,1 @@
-FULL_CLIENT_JS_FROM_DISK_70513_BYTES_gitsha_82d9af052bae393943369a9159efbee4095a0de5
+FILE_REF:/workspace/dsh-plugins/client.js
