@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DSH 插件目录</title>
   <meta name="description" content="DeepSeek Harness 插件目录：按 stars 排名的官方与社区插件。">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="logo.svg">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%232563eb'/%3E%3Ctext x='256' y='330' text-anchor='middle' font-family='Arial,sans-serif' font-size='220' font-weight='700' fill='white'%3Edsh%3C/text%3E%3C/svg%3E" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%232563eb'/%3E%3Ctext x='256' y='330' text-anchor='middle' font-family='Arial,sans-serif' font-size='220' font-weight='700' fill='white'%3Edsh%3C/text%3E%3C/svg%3E">
   <script>try{var _th=localStorage.getItem("dsh-theme");if(_th==="dark"||_th==="light")document.documentElement.setAttribute("data-theme",_th)}catch(e){}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +19,7 @@ body{font-family:Inter,"Noto Sans SC",ui-sans-serif,system-ui,sans-serif;color:v
 .wrap{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
 header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
 .brand{display:flex;gap:14px;align-items:center}
-.mark{width:44px;height:44px;border-radius:12px;object-fit:cover;display:block;background:var(--acc);flex-shrink:0}
+.mark{width:44px;height:44px;border-radius:12px;display:block;flex-shrink:0;overflow:hidden}
 h1{margin:0;font-size:30px;letter-spacing:-.03em;font-weight:700}
 .title-row{display:flex;align-items:center;gap:8px}
 .fish{font-size:18px;line-height:1}
@@ -112,7 +112,7 @@ footer code{background:var(--code);padding:2px 6px;border-radius:6px}
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <img src="logo.svg" alt="DSH 插件目录" class="mark" width="44" height="44">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="mark" width="44" height="44" role="img" aria-label="DSH 插件目录"><rect width="512" height="512" rx="112" fill="#2563eb"/><text x="256" y="318" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="210" font-weight="750" fill="#fff" letter-spacing="-8">dsh</text></svg>
       <div>
         <div class="title-row">
           <h1 id="title">DSH 插件目录</h1>
@@ -164,7 +164,7 @@ footer code{background:var(--code);padding:2px 6px;border-radius:6px}
   <footer>
     <p id="foot-clone">克隆本目录：<code>git clone https://github.com/Sakana-yuyu/dsh-plugins.git</code></p>
     <p id="foot-install">安装插件：<code>dsh plugin --profile web add "github:owner/repo"</code></p>
-    <p id="foot-credit">R Sakana · <a href="https://github.com/Sakana-yuyu" target="_blank" rel="noopener">GitHub</a> · <a href="https://x.com/Sakana19446R" target="_blank" rel="noopener">@Sakana19446R</a></p>
+    <p id="foot-credit">R Sakana · <a href="https://github.com/Sakana-yuyu" target="_blank" rel="noopener">GitHub</a></p>
     <p><a href="https://github.com/topics/dsh-plugin" id="foot-topic">GitHub topic: dsh-plugin</a> · <a href="https://github.com/Sakana-yuyu/dsh-plugins">仓库</a> · <a href="https://deepseek.com/harness">DeepSeek Harness</a></p>
   </footer>
 </div>
@@ -296,7 +296,7 @@ function applyLang() {
   $("catalog-npx").title = i.copyTitle;
   const extraOpen = !$("install-extra").hidden;
   $("btn-install-more").textContent = extraOpen ? i.installLess : i.installMore;
-  $("foot-credit").innerHTML = i.footCredit + ' · <a href="https://github.com/Sakana-yuyu" target="_blank" rel="noopener">GitHub</a> · <a href="https://x.com/Sakana19446R" target="_blank" rel="noopener">@Sakana19446R</a>';
+  $("foot-credit").innerHTML = i.footCredit + ' · <a href="https://github.com/Sakana-yuyu" target="_blank" rel="noopener">GitHub</a>';
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
 }
 function card(p) {
