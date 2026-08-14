@@ -1,7 +1,20 @@
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 export const name = 'dsh-plugins-catalog'
 export const inject = ['tools', 'webServer']
 
 const CATALOG_BASE = 'https://sakana-yuyu.github.io/dsh-plugins'
+const SELF_FULL = 'Sakana-yuyu/dsh-plugins'
+const PREFS_NAME = 'dsh-plugins-prefs.json'
+const DEFAULT_PREFS = {
+  showSidebar: true,
+  coverSize: 'large',
+  autoUpdateSelf: true,
+  autoUpdateOthers: false,
+  lastCheck: 0,
+  lastSelfSha: '',
+}
 const CATS = {
   official: { zh: '官方核心', en: 'Official core' },
   ui: { zh: 'UI 与皮肤', en: 'UI & skins' },
@@ -114,6 +127,154 @@ function safeProfile(value) {
   return String(value || 'web').replace(/[^A-Za-z0-9_-]/g, '') || 'web'
 }
 
+function userHome() {
+  return process.env.USERPROFILE || process.env.HOME || ''
+}
+
+function resolveDshHome() {
+  if (process.env.DSH_HOME) return process.env.DSH_HOME
+  const home = userHome()
+  if (home) {
+    const desk = join(home, 'DeepSeek Harness', 'dsh-home')
+    if (existsSync(desk)) return desk
+    const dot = join(home, '.dsh')
+    if (existsSync(dot)) return dot
+  }
+  return process.cwd()
+}
+
+function prefsPath() {
+  return join(resolveDshHome(), PREFS_NAME)
+}
+
+function loadPrefs() {
+  const out = { ...DEFAULT_PREFS }
+  try {
+    const raw = readFileSync(prefsPath(), 'utf8')
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') {
+      if (typeof parsed.showSidebar === 'boolean') out.showSidebar = parsed.showSidebar
+      if (parsed.coverSize === 'medium' || parsed.coverSize === 'large') out.coverSize = parsed.coverSize
+      if (typeof parsed.autoUpdateSelf === 'boolean') out.autoUpdateSelf = parsed.autoUpdateSelf
+      if (typeof parsed.autoUpdateOthers === 'boolean') out.autoUpdateOthers = parsed.autoUpdateOthers
+      if (typeof parsed.lastCheck === 'number') out.lastCheck = parsed.lastCheck
+      if (typeof parsed.lastSelfSha === 'string') out.lastSelfSha = parsed.lastSelfSha
+    }
+  } catch {}
+  return out
+}
+
+function savePrefs(prefs) {
+  const next = { ...DEFAULT_PREFS, ...prefs }
+  writeFileSync(prefsPath(), JSON.stringify(next, null, 2))
+  return next
+}
+
+function mergePrefs(body) {
+  const cur = loadPrefs()
+  if (!body || typeof body !== 'object') return savePrefs(cur)
+  if (typeof body.showSidebar === 'boolean') cur.showSidebar = body.showSidebar
+  if (body.coverSize === 'medium' || body.coverSize === 'large') cur.coverSize = body.coverSize
+  if (typeof body.autoUpdateSelf === 'boolean') cur.autoUpdateSelf = body.autoUpdateSelf
+  if (typeof body.autoUpdateOthers === 'boolean') cur.autoUpdateOthers = body.autoUpdateOthers
+  if (typeof body.lastCheck === 'number') cur.lastCheck = body.lastCheck
+  if (typeof body.lastSelfSha === 'string') cur.lastSelfSha = body.lastSelfSha
+  return savePrefs(cur)
+}
+
+function webPackageCandidates() {
+  const homes = []
+  if (process.env.DSH_HOME) homes.push(process.env.DSH_HOME)
+  const home = userHome()
+  if (home) {
+    homes.push(join(home, 'DeepSeek Harness', 'dsh-home'))
+    homes.push(join(home, '.dsh'))
+  }
+  homes.push(resolveDshHome())
+  homes.push(process.cwd())
+  const paths = []
+  const seen = new Set()
+  for (const h of homes) {
+    const p = join(h, 'profiles', 'web', 'package.json')
+    if (!seen.has(p)) { seen.add(p); paths.push(p) }
+  }
+  if (!seen.has('profiles/web/package.json')) paths.push('profiles/web/package.json')
+  return paths
+}
+
+function collectInstalledGithub() {
+  const out = []
+  const seen = new Set()
+  for (const p of webPackageCandidates()) {
+    let pkg
+    try {
+      if (!existsSync(p)) continue
+      pkg = JSON.parse(readFileSync(p, 'utf8'))
+    } catch { continue }
+    if (!pkg || typeof pkg !== 'object') continue
+    for (const bag of [pkg.dependencies, pkg.devDependencies]) {
+      if (!bag || typeof bag !== 'object') continue
+      for (const spec of Object.values(bag)) {
+        const s = String(spec || '')
+        if (!s.startsWith('github:')) continue
+        let rest = s.slice(7).split('#')[0].split('?')[0].replace(/\.git$/, '')
+        if (!validFullName(rest) || seen.has(rest)) continue
+        seen.add(rest)
+        out.push({ full_name: rest, spec: s })
+      }
+    }
+    if (out.length) return out
+  }
+  return out
+}
+
+function allUpdateFulls() {
+  const names = collectInstalledGithub().map(x => x.full_name)
+  if (!names.includes(SELF_FULL)) names.push(SELF_FULL)
+  return names.filter(validFullName)
+}
+
+async function fetchSelfSha() {
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), 10000)
+  try {
+    const r = await fetch('https://api.github.com/repos/Sakana-yuyu/dsh-plugins/commits/main', {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'dsh-plugins-catalog',
+      },
+      signal: ac.signal,
+    })
+    if (!r.ok) return ''
+    const data = await r.json()
+    const sha = String((data && data.sha) || '')
+    return sha ? sha.slice(0, 7) : sha
+  } catch {
+    return ''
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function checkUpdates(persist) {
+  const prefs = loadPrefs()
+  const latestSha = await fetchSelfSha()
+  const current = prefs.lastSelfSha || ''
+  const newer = !!(current && latestSha && current !== latestSha)
+  const checkedAt = Date.now()
+  if (persist) {
+    prefs.lastCheck = checkedAt
+    if (latestSha && !prefs.lastSelfSha) prefs.lastSelfSha = latestSha
+    savePrefs(prefs)
+  }
+  return {
+    ok: true,
+    self: { full_name: SELF_FULL, current, latestSha, newer },
+    installed: collectInstalledGithub(),
+    checkedAt,
+  }
+}
+
 let nodeCp = null
 let nodeFs = null
 async function loadNodeMods() {
@@ -141,9 +302,7 @@ function findPowerShellHost(spawnSync, existsSync) {
   return process.platform === 'win32' ? 'powershell.exe' : ''
 }
 
-function buildPsScript(full, profile) {
-  const p = profile
-  const f = full
+function psHomeDetect() {
   return [
     "if (-not $env:DSH_HOME) {",
     "  $desk = Join-Path $env:USERPROFILE 'DeepSeek Harness\\dsh-home';",
@@ -152,24 +311,51 @@ function buildPsScript(full, profile) {
     "  elseif (Test-Path -LiteralPath $dot) { $env:DSH_HOME = $dot }",
     "}",
     "Write-Host ('DSH_HOME=' + $env:DSH_HOME)",
+  ]
+}
+
+function psAddOne(full, profile) {
+  return [
     "if (Get-Command dsh -ErrorAction SilentlyContinue) {",
-    "  dsh plugin --profile " + p + " add \"github:" + f + "\"",
+    "  dsh plugin --profile " + profile + " add \"github:" + full + "\"",
     "} elseif (Get-Command npx -ErrorAction SilentlyContinue) {",
-    "  npx --yes @deepseek-ai/dsh plugin --profile " + p + " add \"github:" + f + "\"",
+    "  npx --yes @deepseek-ai/dsh plugin --profile " + profile + " add \"github:" + full + "\"",
     "} else {",
     "  Write-Host '找不到 dsh 或 npx，请先安装 Node.js 或把 dsh 加到 PATH'",
     "}",
-    "Write-Host '完成。请重启 DSH / dsh-desktop。'",
-  ].join('; ')
+  ]
 }
 
-async function launchVisiblePowerShell(script) {
+function buildPsScript(full, profile) {
+  return psHomeDetect().concat(psAddOne(full, profile), ["Write-Host '完成。请重启 DSH / dsh-desktop。'"]).join('; ')
+}
+
+function buildPsUpdateAll(fulls, profile) {
+  const list = fulls.filter(validFullName).map(f => "'" + f + "'").join(',')
+  return psHomeDetect().concat([
+    "$repos = @(" + list + ")",
+    "foreach ($f in $repos) {",
+    "  Write-Host ('更新 ' + $f)",
+    "  if (Get-Command dsh -ErrorAction SilentlyContinue) {",
+    "    dsh plugin --profile " + profile + " add (\"github:\" + $f)",
+    "  } elseif (Get-Command npx -ErrorAction SilentlyContinue) {",
+    "    npx --yes @deepseek-ai/dsh plugin --profile " + profile + " add (\"github:\" + $f)",
+    "  } else {",
+    "    Write-Host '找不到 dsh 或 npx，请先安装 Node.js 或把 dsh 加到 PATH'; break",
+    "  }",
+    "}",
+    "Write-Host '完成。请重启 DSH / dsh-desktop。'",
+  ]).join('; ')
+}
+
+async function launchVisiblePowerShell(script, title) {
   const { spawn, spawnSync, existsSync } = await loadNodeMods()
   const shell = findPowerShellHost(spawnSync, existsSync) || 'powershell.exe'
+  const winTitle = title || '安装插件'
   return new Promise((resolve, reject) => {
     let child
     if (process.platform === 'win32') {
-      child = spawn('cmd.exe', ['/c', 'start', '安装插件', shell, '-NoExit', '-Command', script], {
+      child = spawn('cmd.exe', ['/c', 'start', winTitle, shell, '-NoExit', '-Command', script], {
         detached: true,
         stdio: 'ignore',
         windowsHide: false,
@@ -213,20 +399,25 @@ async function installViaNpxOrDsh(full, profile) {
   return result
 }
 
-async function installPlugin(full, profile) {
-  const command = installCmd(full, profile)
+async function launchAdd(fulls, profile, title) {
+  const command = fulls.length === 1
+    ? installCmd(fulls[0], profile)
+    : fulls.map(f => installCmd(f, profile)).join(' && ')
   const { spawnSync, existsSync } = await loadNodeMods()
   const useWin = process.platform === 'win32' || !!findPowerShellHost(spawnSync, existsSync)
   if (useWin) {
-    const script = buildPsScript(full, profile)
+    const script = fulls.length === 1 ? buildPsScript(fulls[0], profile) : buildPsUpdateAll(fulls, profile)
     try {
-      await launchVisiblePowerShell(script)
+      await launchVisiblePowerShell(script, title)
       return {
         ok: true,
         launched: true,
         needsRestart: true,
-        message: '已打开 PowerShell 安装窗口，完成后请重启 DSH',
+        message: title === '更新插件'
+          ? '已打开 PowerShell 更新窗口，完成后请重启 DSH'
+          : '已打开 PowerShell 安装窗口，完成后请重启 DSH',
         command,
+        targets: fulls,
       }
     } catch (err) {
       return {
@@ -235,24 +426,51 @@ async function installPlugin(full, profile) {
         needsRestart: true,
         message: String(err && err.message || err),
         command,
+        targets: fulls,
         stdout: '',
         stderr: String(err && err.message || err),
       }
     }
   }
-  const result = await installViaNpxOrDsh(full, profile)
-  const stdout = result.stdout || ''
-  const stderr = result.stderr || ''
-  const ok = result.code === 0
+  let ok = true
+  let stdout = ''
+  let stderr = ''
+  for (const f of fulls) {
+    const result = await installViaNpxOrDsh(f, profile)
+    stdout += result.stdout || ''
+    stderr += result.stderr || ''
+    if (result.code !== 0) ok = false
+  }
   return {
     ok,
     launched: false,
     needsRestart: true,
-    message: ok ? 'installed' : ((stderr || '').slice(-500) || 'install failed'),
+    message: ok ? (title === '更新插件' ? 'updated' : 'installed') : ((stderr || '').slice(-500) || 'failed'),
     command,
+    targets: fulls,
     stdout: stdout.slice(-4000),
     stderr: stderr.slice(-4000),
   }
+}
+
+async function installPlugin(full, profile) {
+  return launchAdd([full], profile, '安装插件')
+}
+
+function resolveUpdateFulls(target) {
+  const t = String(target || '').trim()
+  if (t === 'self') return [SELF_FULL]
+  if (t === 'all') return allUpdateFulls()
+  if (validFullName(t)) return [t]
+  return null
+}
+
+async function runUpdate(target, profile) {
+  const fulls = resolveUpdateFulls(target)
+  if (!fulls || !fulls.length) {
+    return { ok: false, message: 'target must be self, all, or owner/repo', targets: [] }
+  }
+  return launchAdd(fulls, safeProfile(profile), '更新插件')
 }
 
 const DETAIL_TTL_MS = 10 * 60 * 1000
@@ -374,6 +592,41 @@ async function registerWithDefineTool(ctx) {
       }
     },
   }))
+  ctx.tools.register(defineTool({
+    name: 'dsh_catalog_update',
+    description: 'Update this catalog plugin (self), all installed github: plugins (all), or one owner/repo by re-adding the git source.',
+    parameters: {
+      target: { type: 'string', required: true, description: 'self, all, or owner/repo' },
+      profile: { type: 'string', description: 'DSH profile name, default web' },
+      run: { type: 'boolean', description: 'If true, actually run. Default true.' },
+    },
+    output: { schema: { type: 'object' } },
+    async execute(args) {
+      const target = String(args.target || '').trim()
+      const fulls = resolveUpdateFulls(target)
+      if (!fulls) {
+        return { ok: false, error: 'target must be self, all, or owner/repo' }
+      }
+      const profile = safeProfile(args.profile)
+      const command = fulls.map(f => installCmd(f, profile)).join(' && ')
+      if (args.run === false) {
+        return { ok: true, ran: false, target, command, targets: fulls }
+      }
+      const result = await runUpdate(target, profile)
+      return {
+        ok: result.ok,
+        ran: true,
+        launched: !!result.launched,
+        target,
+        command,
+        targets: result.targets || fulls,
+        needsRestart: result.needsRestart,
+        message: result.message,
+        stdout: (result.stdout || '').slice(-4000),
+        stderr: (result.stderr || '').slice(-4000),
+      }
+    },
+  }))
 }
 
 function sendJson(res, status, obj) {
@@ -448,6 +701,42 @@ async function handleHttp(req, res) {
     return
   }
 
+  if (method === 'GET' && path === '/api/dsh-plugins/prefs') {
+    try {
+      sendJson(res, 200, { ok: true, prefs: loadPrefs() })
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: String(err && err.message || err) })
+    }
+    return
+  }
+
+  if (method === 'POST' && path === '/api/dsh-plugins/prefs') {
+    let body
+    try {
+      body = JSON.parse((await readBody(req)) || '{}')
+    } catch {
+      sendJson(res, 400, { ok: false, error: 'invalid json' })
+      return
+    }
+    try {
+      const prefs = mergePrefs(body)
+      sendJson(res, 200, { ok: true, prefs })
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: String(err && err.message || err) })
+    }
+    return
+  }
+
+  if (method === 'GET' && path === '/api/dsh-plugins/updates') {
+    try {
+      const data = await checkUpdates(true)
+      sendJson(res, 200, data)
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: String(err && err.message || err) })
+    }
+    return
+  }
+
   if (method === 'POST' && path === '/api/dsh-plugins/install') {
     let body
     try {
@@ -478,6 +767,34 @@ async function handleHttp(req, res) {
     return
   }
 
+  if (method === 'POST' && path === '/api/dsh-plugins/update') {
+    let body
+    try {
+      body = JSON.parse((await readBody(req)) || '{}')
+    } catch {
+      sendJson(res, 400, { ok: false, error: 'invalid json' })
+      return
+    }
+    const target = String((body && body.target) || '').trim()
+    const profile = safeProfile(body && body.profile)
+    if (!resolveUpdateFulls(target)) {
+      sendJson(res, 400, { ok: false, error: 'target must be self, all, or owner/repo' })
+      return
+    }
+    try {
+      const result = await runUpdate(target, profile)
+      sendJson(res, result.ok ? 200 : 500, result)
+    } catch (err) {
+      sendJson(res, 500, {
+        ok: false,
+        needsRestart: true,
+        message: String(err && err.message || err),
+        target,
+      })
+    }
+    return
+  }
+
   sendJson(res, 404, { ok: false, error: 'not found' })
 }
 
@@ -492,6 +809,30 @@ function registerHttp(ctx) {
   else ctx.webServer.register(route)
 }
 
+async function scheduledTick(ctx) {
+  try {
+    const info = await checkUpdates(true)
+    const prefs = loadPrefs()
+    const newer = !!(info.self && info.self.newer)
+    if (!newer) return
+    if (prefs.autoUpdateOthers) {
+      const result = await runUpdate('all', 'web')
+      if (result && result.ok && info.self && info.self.latestSha) {
+        prefs.lastSelfSha = info.self.latestSha
+        savePrefs(prefs)
+      }
+    } else if (prefs.autoUpdateSelf) {
+      const result = await runUpdate('self', 'web')
+      if (result && result.ok && info.self && info.self.latestSha) {
+        prefs.lastSelfSha = info.self.latestSha
+        savePrefs(prefs)
+      }
+    }
+  } catch (err) {
+    if (ctx && ctx.logger && ctx.logger.warn) ctx.logger.warn('[dsh-plugins-catalog] check ' + err)
+  }
+}
+
 export async function apply(ctx) {
   try {
     await registerWithDefineTool(ctx)
@@ -502,5 +843,16 @@ export async function apply(ctx) {
     registerHttp(ctx)
   } catch (err) {
     if (ctx.logger && ctx.logger.warn) ctx.logger.warn('[dsh-plugins-catalog] http ' + err)
+  }
+  try {
+    const prefs = loadPrefs()
+    if (prefs.autoUpdateSelf || prefs.autoUpdateOthers) {
+      setTimeout(() => {
+        scheduledTick(ctx)
+        setInterval(() => scheduledTick(ctx), 6 * 60 * 60 * 1000)
+      }, 20000)
+    }
+  } catch (err) {
+    if (ctx.logger && ctx.logger.warn) ctx.logger.warn('[dsh-plugins-catalog] autoupdate ' + err)
   }
 }
