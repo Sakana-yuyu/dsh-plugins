@@ -91,6 +91,14 @@ def load_translations():
         return json.loads(p.read_text(encoding="utf-8"))
     return {}
 
+def load_paths():
+    p = DOCS / "path-overrides.json"
+    if p.exists():
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return data
+    return {}
+
 def classify(item):
     owner = (item.get("full_name") or "").split("/")[0].lower()
     if owner == "deepseek-ai":
@@ -189,7 +197,7 @@ def fetch_all(token):
         time.sleep(0.35 if token else 2.0)
     return items
 
-def to_plugin(it, rank, translations):
+def to_plugin(it, rank, translations, paths=None):
     full = it.get("full_name") or ""
     official = full.startswith("deepseek-ai/")
     cat = classify(it)
@@ -197,7 +205,7 @@ def to_plugin(it, rank, translations):
     desc = it.get("description")
     dz, de = descriptions(full, desc, translations)
     clone = it.get("clone_url") or (f"https://github.com/{full}.git" if full else "")
-    return {
+    rec = {
         "rank": rank,
         "name": it.get("name") or "",
         "full_name": full,
@@ -218,13 +226,19 @@ def to_plugin(it, rank, translations):
         "updated_at": it.get("updated_at") or "",
         "default_branch": it.get("default_branch") or "main",
     }
+    if paths:
+        sub = str(paths.get(full) or "").strip().strip("/")
+        if sub and ".." not in sub:
+            rec["path"] = sub
+    return rec
 
 def main():
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     DOCS.mkdir(parents=True, exist_ok=True)
     translations = load_translations()
+    paths = load_paths()
     raw = fetch_all(token)
-    plugins = [to_plugin(it, i + 1, translations) for i, it in enumerate(raw)]
+    plugins = [to_plugin(it, i + 1, translations, paths) for i, it in enumerate(raw)]
     (DOCS / "catalog.json").write_text(json.dumps(plugins, ensure_ascii=False, indent=2) + chr(10), encoding="utf-8")
     print("wrote", len(plugins), "plugins")
     return 0
