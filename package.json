@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugins-catalog",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Star-ranked DeepSeek Harness plugin catalog. Search and install other dsh-plugin repos.",
   "type": "module",
   "main": "index.js",
@@ -37,5 +37,8 @@
     "./client": "./client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "node --test"
   }
 }
