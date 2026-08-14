@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DSH 插件目录</title>
   <meta name="description" content="DeepSeek Harness 插件目录：按 stars 排名的官方与社区插件。">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="logo.png">
   <script>try{var _th=localStorage.getItem("dsh-theme");if(_th==="dark"||_th==="light")document.documentElement.setAttribute("data-theme",_th)}catch(e){}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,9 +19,12 @@ body{font-family:Inter,"Noto Sans SC",ui-sans-serif,system-ui,sans-serif;color:v
 .wrap{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
 header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
 .brand{display:flex;gap:14px;align-items:center}
-.mark{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:13px;letter-spacing:.02em;color:#fff;background:var(--acc)}
+.mark{width:44px;height:44px;border-radius:12px;object-fit:cover;display:block;background:var(--acc);flex-shrink:0}
 h1{margin:0;font-size:30px;letter-spacing:-.03em;font-weight:700}
+.title-row{display:flex;align-items:center;gap:8px}
+.fish{font-size:18px;line-height:1}
 .sub{color:var(--muted);margin:6px 0 0;font-size:14px}
+.byline{color:var(--muted);margin:4px 0 0;font-size:13px}
 .hdr-acts{display:flex;align-items:center;gap:10px}
 .lang,.ghost{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card)}
 .lang button,.ghost,.chip,button.tab,.btn{background:transparent;color:var(--ink);border:0;padding:8px 14px;cursor:pointer;font:inherit}
@@ -31,11 +36,18 @@ input[type=search]{flex:1;min-width:220px;background:var(--card);border:1px soli
 html[data-theme=dark] .btn{color:#0b1220}
 .tabs,.cats{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1px solid var(--line);border-radius:999px;background:var(--card)}
-.meta{color:var(--muted);font-size:13px;margin:0 0 18px}
-h2.sec{font-size:18px;margin:28px 0 12px;display:flex;align-items:baseline;gap:10px;font-weight:650}
+.meta{color:var(--muted);font-size:13px;margin:0 0 10px}
+h2.sec{font-size:16px;margin:14px 0 8px;display:flex;align-items:baseline;gap:10px;font-weight:650}
 h2.sec span{color:var(--muted);font-size:13px;font-weight:400}
+h2.sec#all-title{margin-top:20px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.feat{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.feat-row{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 0 8px;scrollbar-width:thin}
+.feat-row .card{flex:0 0 250px;width:250px;min-height:0;scroll-snap-align:start}
+.feat-row .body{padding:10px 12px 12px;gap:6px}
+.feat-row .name{font-size:14px}
+.feat-row .desc{min-height:0;max-height:2.6em;overflow:hidden}
+.feat-row .acts button,.feat-row .acts a{padding:6px 6px;font-size:12px}
+.feat-row .cover{aspect-ratio:16/9}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:100%;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
 .card:hover{transform:translateY(-2px)}
 .cover{position:relative;aspect-ratio:16/8;background:var(--code);overflow:hidden}
@@ -53,9 +65,10 @@ html[data-theme=dark] .badge.off{color:#0b1220}
 .acts{display:flex;gap:8px;margin-top:auto}
 .acts button,.acts a{flex:1;text-align:center;text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--acc);background:var(--soft);font-size:13px;cursor:pointer}
 code.cmd{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:1.4;padding:8px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--acc);background:var(--code);border-radius:8px;cursor:pointer}
-.official-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.off-mini{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--card);text-decoration:none;color:inherit;box-shadow:var(--shadow)}
-.off-mini img{width:64px;height:36px;object-fit:cover;border-radius:6px}
+.official-strip{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 0 4px;scrollbar-width:thin}
+.off-mini{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);text-decoration:none;color:inherit;box-shadow:var(--shadow);flex:0 0 auto;min-width:200px;max-width:280px;scroll-snap-align:start}
+.off-mini img{width:56px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0}
+.off-mini .sub{margin:2px 0 0;font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pager{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:22px 0 8px}
 .pager button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer;font:inherit}
 .pager button.on{background:var(--acc);color:#fff;border-color:transparent}
@@ -77,28 +90,36 @@ footer code{background:var(--code);padding:2px 6px;border-radius:6px}
 .md a{color:var(--acc)}
 .mdetail{margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
 .mdetail h3{margin:0 0 8px;font-size:18px}
-.install-strip{margin:0 0 20px;padding:18px 20px;border:1px solid var(--acc);border-radius:16px;background:var(--soft);box-shadow:var(--shadow)}
-.install-head strong{display:block;font-size:18px;letter-spacing:-.02em;font-weight:700;color:var(--acc);margin:0 0 6px}
-.install-hint{margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.55}
-.install-row{display:flex;gap:10px;align-items:center}
-.install-row .cmd{flex:1;min-width:0;font-size:13px;padding:12px 14px}
-.install-row .btn{flex:0 0 auto;white-space:nowrap}
-.install-alt{margin:12px 0 8px;color:var(--muted);font-size:12px;line-height:1.55}
+
+.install-strip{margin:0 0 14px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.install-row{display:flex;gap:8px;align-items:center}
+.install-row strong{flex:0 0 auto;font-size:13px;font-weight:650;color:var(--acc);white-space:nowrap}
+.install-row .cmd{flex:1;min-width:0;font-size:12px;padding:7px 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.install-row .btn{flex:0 0 auto;white-space:nowrap;padding:6px 12px;font-size:13px}
+.install-toggle{flex:0 0 auto;padding:6px 10px;font-size:12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--muted);cursor:pointer;white-space:nowrap;font:inherit}
+.install-extra{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.install-extra[hidden]{display:none!important}
+.install-hint{margin:0 0 8px;color:var(--muted);font-size:13px;line-height:1.5}
+.install-alt{margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.5}
 .install-npx{font-size:11px}
-@media(max-width:520px){.install-row{flex-wrap:wrap}.install-row .btn{width:100%}}
+@media(max-width:640px){.install-row{flex-wrap:wrap}.install-row .cmd{flex:1 1 100%}.install-row .btn,.install-toggle{flex:1 1 auto}}
 @media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:520px){h1{font-size:24px}.grid,.feat{grid-template-columns:1fr}}
+@media(max-width:520px){h1{font-size:24px}.grid{grid-template-columns:1fr}.feat-row .card{flex:0 0 240px;width:240px}}
   </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <div class="mark">dsh</div>
+      <img src="logo.png" alt="DSH 插件目录" class="mark" width="44" height="44">
       <div>
-        <h1 id="title">DSH 插件目录</h1>
+        <div class="title-row">
+          <h1 id="title">DSH 插件目录</h1>
+          <span class="fish" title="Sakana" aria-hidden="true">🐟</span>
+        </div>
         <p class="sub" id="subtitle">按 GitHub stars 排名的 DeepSeek Harness 插件，来自 topic:dsh-plugin</p>
+        <p class="byline" id="byline">由 R Sakana 维护</p>
       </div>
     </div>
     <div class="hdr-acts">
@@ -110,16 +131,17 @@ footer code{background:var(--code);padding:2px 6px;border-radius:6px}
     </div>
   </header>
   <aside class="install-strip" id="install-strip" aria-labelledby="install-title">
-    <div class="install-head">
-      <strong id="install-title">把本目录装进 DSH</strong>
-      <p class="install-hint" id="install-hint">在系统终端运行，不要让会话里的 Agent 代跑。装完重启 DSH。</p>
-    </div>
     <div class="install-row">
+      <strong id="install-title">装进 DSH</strong>
       <code class="cmd" id="catalog-cmd" data-install="dsh plugin --profile web add &quot;github:Sakana-yuyu/dsh-plugins&quot;" title="点击复制">dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"</code>
       <button type="button" class="btn" id="btn-copy-catalog" data-install="dsh plugin --profile web add &quot;github:Sakana-yuyu/dsh-plugins&quot;">复制</button>
+      <button type="button" class="install-toggle" id="btn-install-more" aria-expanded="false" aria-controls="install-extra">桌面版 / 更多</button>
     </div>
-    <p class="install-alt" id="install-alt">桌面版若找不到 dsh，先设 DSH_HOME 为桌面版主目录（例如 %USERPROFILE%\DeepSeek Harness\dsh-home），再用 npx：</p>
-    <code class="cmd install-npx" id="catalog-npx" data-install="npx @deepseek-ai/dsh plugin --profile web add &quot;github:Sakana-yuyu/dsh-plugins&quot;" title="点击复制">npx @deepseek-ai/dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"</code>
+    <div class="install-extra" id="install-extra" hidden>
+      <p class="install-hint" id="install-hint">在系统终端运行，不要让会话里的 Agent 代跑。装完重启 DSH。</p>
+      <p class="install-alt" id="install-alt">桌面版若找不到 dsh，先设 DSH_HOME 为桌面版主目录（例如 %USERPROFILE%\DeepSeek Harness\dsh-home），再用 npx：</p>
+      <code class="cmd install-npx" id="catalog-npx" data-install="npx @deepseek-ai/dsh plugin --profile web add &quot;github:Sakana-yuyu/dsh-plugins&quot;" title="点击复制">npx @deepseek-ai/dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"</code>
+    </div>
   </aside>
   <div class="toolbar">
     <input id="q" type="search" placeholder="搜索插件、作者、描述…">
@@ -133,7 +155,7 @@ footer code{background:var(--code);padding:2px 6px;border-radius:6px}
   <div class="cats" id="cats"></div>
   <p class="meta" id="stats"></p>
   <h2 class="sec" id="rec-title">推荐 <span id="rec-sub">按 stars 的前 10</span></h2>
-  <div class="grid feat" id="featured"></div>
+  <div class="feat-row" id="featured"></div>
   <h2 class="sec" id="off-title">官方推荐 <span id="off-sub">deepseek-ai 核心与 in-tree 包</span></h2>
   <div class="official-strip" id="official-row"></div>
   <h2 class="sec" id="all-title">全部插件 <span id="all-sub">按 stars 降序</span></h2>
@@ -142,6 +164,7 @@ footer code{background:var(--code);padding:2px 6px;border-radius:6px}
   <footer>
     <p id="foot-clone">克隆本目录：<code>git clone https://github.com/Sakana-yuyu/dsh-plugins.git</code></p>
     <p id="foot-install">安装插件：<code>dsh plugin --profile web add "github:owner/repo"</code></p>
+    <p id="foot-credit">R Sakana · <a href="https://github.com/Sakana-yuyu" target="_blank" rel="noopener">GitHub</a> · <a href="https://x.com/Sakana19446R" target="_blank" rel="noopener">@Sakana19446R</a></p>
     <p><a href="https://github.com/topics/dsh-plugin" id="foot-topic">GitHub topic: dsh-plugin</a> · <a href="https://github.com/Sakana-yuyu/dsh-plugins">仓库</a> · <a href="https://deepseek.com/harness">DeepSeek Harness</a></p>
   </footer>
 </div>
@@ -158,6 +181,10 @@ const I18N = {
   zh: {
     title: "DSH 插件目录",
     subtitle: "按 GitHub stars 排名的 DeepSeek Harness 插件，来自 topic:dsh-plugin",
+    byline: "由 R Sakana 维护",
+    installMore: "桌面版 / 更多",
+    installLess: "收起",
+    footCredit: "R Sakana",
     search: "搜索插件、作者、描述…",
     all: "全部", official: "官方", community: "社区",
     rec: "推荐", recSub: "按 stars 的前 10",
@@ -171,7 +198,7 @@ const I18N = {
     readmeLoading: "正在加载 README…",
     copyTitle: "点击复制",
     copyBtn: "复制",
-    installTitle: "把本目录装进 DSH",
+    installTitle: "装进 DSH",
     installHint: "在系统终端运行，不要让会话里的 Agent 代跑。装完重启 DSH。",
     installAlt: "桌面版若找不到 dsh，先设 DSH_HOME 为桌面版主目录（例如 %USERPROFILE%\\DeepSeek Harness\\dsh-home），再用 npx：",
     prev: "上一页", next: "下一页",
@@ -180,6 +207,10 @@ const I18N = {
   en: {
     title: "DSH Plugin Catalog",
     subtitle: "DeepSeek Harness plugins from topic:dsh-plugin, ranked by GitHub stars",
+    byline: "Maintained by R Sakana",
+    installMore: "Desktop / more",
+    installLess: "Less",
+    footCredit: "R Sakana",
     search: "Search plugins, authors, descriptions…",
     all: "All", official: "Official", community: "Community",
     rec: "Featured", recSub: "Top 10 by stars",
@@ -193,7 +224,7 @@ const I18N = {
     readmeLoading: "Loading README…",
     copyTitle: "Click to copy",
     copyBtn: "Copy",
-    installTitle: "Install this catalog into DSH",
+    installTitle: "Install",
     installHint: "Run this in a real terminal, not inside the agent sandbox. Restart DSH after.",
     installAlt: "If the desktop app cannot find dsh, set DSH_HOME to the desktop home (e.g. %USERPROFILE%\\DeepSeek Harness\\dsh-home), then use npx:",
     prev: "Prev", next: "Next",
@@ -243,6 +274,7 @@ function applyLang() {
   const i = t();
   $("title").textContent = i.title;
   $("subtitle").textContent = i.subtitle;
+  $("byline").textContent = i.byline;
   $("q").placeholder = i.search;
   $("btn-search").textContent = i.searchBtn;
   document.querySelectorAll(".tab[data-scope]").forEach(b => { b.textContent = i[b.dataset.scope]; });
@@ -262,6 +294,9 @@ function applyLang() {
   $("btn-copy-catalog").textContent = i.copyBtn;
   $("catalog-cmd").title = i.copyTitle;
   $("catalog-npx").title = i.copyTitle;
+  const extraOpen = !$("install-extra").hidden;
+  $("btn-install-more").textContent = extraOpen ? i.installLess : i.installMore;
+  $("foot-credit").innerHTML = i.footCredit + ' · <a href="https://github.com/Sakana-yuyu" target="_blank" rel="noopener">GitHub</a> · <a href="https://x.com/Sakana19446R" target="_blank" rel="noopener">@Sakana19446R</a>';
   document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
 }
 function card(p) {
@@ -485,9 +520,22 @@ function setTheme(next) {
   localStorage.setItem("dsh-theme", theme);
   $("btn-theme").textContent = theme === "light" ? t().themeDark : t().themeLight;
 }
+function setInstallOpen(open) {
+  const extra = $("install-extra");
+  const btn = $("btn-install-more");
+  extra.hidden = !open;
+  $("install-strip").classList.toggle("open", open);
+  btn.textContent = open ? t().installLess : t().installMore;
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  try { localStorage.setItem("dsh-install-open", open ? "1" : "0"); } catch (err) {}
+}
 document.addEventListener("click", (e) => {
   if (e.target.id === "modal") { closeModal(); return; }
   if (e.target.id === "modal-x") { closeModal(); return; }
+  if (e.target.closest("#btn-install-more")) {
+    setInstallOpen($("install-extra").hidden);
+    return;
+  }
   const b = e.target.closest("[data-clone]");
   if (b) { navigator.clipboard.writeText(b.dataset.clone).then(()=>toast(t().copied)); return; }
   const inst = e.target.closest("[data-install]");
@@ -519,6 +567,7 @@ $("q").addEventListener("input", () => { page = 1; render(); });
 $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); page = 1; render(); $("list").scrollIntoView({behavior:"smooth", block:"start"}); } });
 $("btn-zh").addEventListener("click", () => { lang="zh"; localStorage.setItem("dsh-lang", lang); render(); });
 $("btn-en").addEventListener("click", () => { lang="en"; localStorage.setItem("dsh-lang", lang); render(); });
+try { setInstallOpen(localStorage.getItem("dsh-install-open") === "1"); } catch (err) { setInstallOpen(false); }
 const PARTS = Array.from({length:26}, (_,i) => "s"+(i+1)+".json");
 Promise.all([
   Promise.all(PARTS.map(f => fetch(f).then(r => r.ok ? r.json() : []).catch(() => []))).then(parts => {
