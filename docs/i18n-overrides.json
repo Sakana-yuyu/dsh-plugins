@@ -1,0 +1,10 @@
+{
+  "deepseek-ai/deepseek-harness": {"zh": "DeepSeek Harness：一切皆插件。开源 agent 运行时，官方核心仓库。", "en": "DeepSeek Harness: everything is a plugin. Official open-source agent runtime."},
+  "titanwings/colleague-skill": {"zh": "把冰冷的离别化为温暖的 Skill，欢迎加入数字生命 1.0。", "en": "Turn a cold farewell into a warm Skill. Welcome to Digital Life 1.0."},
+  "Devin-AXIS/iPolloWork": {"zh": "下一代源码可得的 AI 工作台，接入 DeepSeek Harness 做子代理委派。", "en": "Next-gen source-available AI workspace that integrates DSH for subagent delegation."},
+  "whiteguo233/OpenBiliClaw": {"zh": "本地私有的跨平台内容发现 Agent，支持 B 站、小红书、抖音等，可作 DSH 插件。", "en": "Local-first cross-platform content discovery agent; also ships as a DSH plugin."},
+  "paean-ai/deeptide": {"zh": "为 DeepSeek 打造的 Swift 原生 macOS 编程代理。", "en": "A Swift-native macOS coding agent, built by DeepSeek, for DeepSeek."},
+  "zhu1090093659/dsh-web-ui": {"zh": "DSH Web UI 插件与皮肤合集：任务板、Git 图、侧栏、远程移动端、宠物与皮肤中心。", "en": "Plugin and skin collection for DSH Web UI: task board, git graph, sidebar, mobile UI, pet, skins."},
+  "liustack/modlens": {"zh": "DSH 首个视觉插件：粘贴图片，得到 OCR、版面与语义的结构化证据。", "en": "First vision plugin for DSH. Paste an image, get structured OCR, layout, and semantics."},
+  "ccch1mneyyy/dsh-TUI": {"zh": "Claude Code 风格全屏终端插件：像素鲸鱼顶栏、思考流、Esc 回滚与 TPS 仪表。", "en": "Claude Code-style fullscreen TUI: pixel-whale header, thought stream, Esc rewind, TPS gauge."}
+}
