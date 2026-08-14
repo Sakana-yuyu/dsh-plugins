@@ -8,6 +8,9 @@ window.__ModuleLoader__.load({
     var useState = React.useState;
     var useEffect = React.useEffect;
     var useCallback = React.useCallback;
+    var ReactDOM = null;
+    try { ReactDOM = require("react-dom"); } catch (e) { ReactDOM = null; }
+    var createPortal = ReactDOM && (ReactDOM.createPortal || (ReactDOM.default && ReactDOM.default.createPortal));
 
     var CATS = [
       { id: "all", zh: "全部分类" },
@@ -36,6 +39,9 @@ window.__ModuleLoader__.load({
     var BG = "var(--dsw-alias-bg-module-platform)";
     var ERR = "var(--dsw-alias-state-error-primary)";
     var OK = "var(--dsw-alias-state-success-primary)";
+    var LS_KEY = "dsh-plugins-ui";
+    var EVT = "dsh-plugins-ui";
+    var SITE = "https://sakana-yuyu.github.io/dsh-plugins/";
 
     function ownerOf(full) {
       var s = String(full || "");
@@ -53,16 +59,29 @@ window.__ModuleLoader__.load({
       if (s.length > 800) s = s.slice(0, 800) + "…";
       return s;
     }
-    function wrapStyle() {
-      return {
-        padding: "8px 4px 16px",
-        color: FG,
-        fontSize: 13,
-        lineHeight: "20px",
-        overflowX: "hidden",
-        maxWidth: "100%",
-        boxSizing: "border-box"
-      };
+    function coverH(size) {
+      return size === "medium" ? 110 : 168;
+    }
+    function readLocalUi() {
+      try {
+        var raw = localStorage.getItem(LS_KEY);
+        if (!raw) return { showSidebar: true, coverSize: "large" };
+        var o = JSON.parse(raw);
+        return {
+          showSidebar: o.showSidebar !== false,
+          coverSize: o.coverSize === "medium" ? "medium" : "large"
+        };
+      } catch (e) {
+        return { showSidebar: true, coverSize: "large" };
+      }
+    }
+    function writeLocalUi(partial) {
+      var cur = readLocalUi();
+      if (partial.showSidebar !== undefined) cur.showSidebar = !!partial.showSidebar;
+      if (partial.coverSize) cur.coverSize = partial.coverSize === "medium" ? "medium" : "large";
+      try { localStorage.setItem(LS_KEY, JSON.stringify(cur)); } catch (e) {}
+      try { window.dispatchEvent(new CustomEvent(EVT, { detail: cur })); } catch (e) {}
+      return cur;
     }
     function chipStyle(on) {
       return {
@@ -117,7 +136,6 @@ window.__ModuleLoader__.load({
         lineHeight: "16px",
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         overflow: "hidden",
-        overflowX: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
         cursor: "pointer",
@@ -133,12 +151,19 @@ window.__ModuleLoader__.load({
       var blob = [p.name, p.full_name, p.author, p.description, p.description_zh, p.description_en, p.category_zh, p.category].join(" ").toLowerCase();
       return blob.indexOf(q) >= 0;
     }
+    function overlay(node) {
+      if (createPortal && typeof document !== "undefined" && document.body) {
+        return createPortal(node, document.body);
+      }
+      return node;
+    }
 
     function PluginCard(props) {
       var p = props.p;
       var install = props.install;
       var waiting = props.waiting;
       var note = props.note;
+      var hCover = coverH(props.coverSize);
       var ex = useState(false);
       var open = ex[0], setOpen = ex[1];
       var cp = useState(false);
@@ -197,13 +222,14 @@ window.__ModuleLoader__.load({
             href: src,
             target: "_blank",
             rel: "noreferrer",
-            style: { display: "block", maxWidth: "100%" }
+            style: { display: "block", flex: "0 0 auto" }
           }, h("img", {
             src: src,
             alt: "",
             style: {
-              maxWidth: "100%",
-              maxHeight: 180,
+              maxHeight: 200,
+              height: 200,
+              width: "auto",
               objectFit: "cover",
               borderRadius: 8,
               display: "block"
@@ -229,7 +255,7 @@ window.__ModuleLoader__.load({
           alt: "",
           style: {
             width: "100%",
-            height: 88,
+            height: hCover,
             objectFit: "cover",
             borderRadius: 6,
             marginBottom: 8,
@@ -248,7 +274,7 @@ window.__ModuleLoader__.load({
               background: BG
             }
           }, "官方") : null,
-          h("span", { style: { color: MUTED, fontSize: 12 } }, "★ " + (p.stars || 0))
+          h("span", { style: { color: MUTED, fontSize: 12 } }, "stars " + (p.stars || 0))
         ),
         h("div", { style: { color: MUTED, fontSize: 12, marginTop: 4 } },
           (author ? author + " · " : "") + (p.category_zh || p.category || "")
@@ -277,17 +303,19 @@ window.__ModuleLoader__.load({
           (detail && detail.loading) ? h("div", { style: { marginBottom: 8 } }, "正在加载 README…") : null,
           (detail && detail.error) ? h("div", { style: { color: ERR, marginBottom: 8 } }, detail.error) : null,
           shot.length ? h("div", {
-            style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }
+            style: {
+              display: "flex",
+              flexWrap: "nowrap",
+              gap: 8,
+              overflowX: "auto",
+              marginBottom: 8,
+              maxHeight: 200
+            }
           }, shot) : null,
           zh ? h("div", { style: { marginBottom: 4, color: FG } }, "中文：" + zh) : null,
           en ? h("div", { style: { marginBottom: 4, color: FG } }, "EN: " + en) : null,
           readmeText ? h("div", {
-            style: {
-              color: MUTED,
-              whiteSpace: "pre-wrap",
-              overflow: "hidden",
-              marginTop: 6
-            }
+            style: { color: MUTED, whiteSpace: "pre-wrap", overflow: "hidden", marginTop: 6 }
           }, readmeText) : null
         ) : null,
         note ? h("div", {
@@ -296,7 +324,9 @@ window.__ModuleLoader__.load({
       );
     }
 
-    function CatalogPanel() {
+    function CatalogDrawer(props) {
+      var onClose = props.onClose;
+      var coverSize = props.coverSize || "large";
       var st = useState([]);
       var plugins = st[0], setPlugins = st[1];
       var ld = useState(true);
@@ -428,7 +458,6 @@ window.__ModuleLoader__.load({
           }, item.zh));
         })(CATS[ci]);
       }
-
       var cards = [];
       for (var j = 0; j < shown.length; j++) {
         (function (item) {
@@ -438,64 +467,372 @@ window.__ModuleLoader__.load({
             p: item,
             install: install,
             waiting: !!busy[full],
-            note: notes[full]
+            note: notes[full],
+            coverSize: coverSize
           }));
         })(shown[j]);
       }
 
-      return h("div", { style: wrapStyle() },
-        h("div", { style: { fontSize: 16, fontWeight: 600, marginBottom: 4, color: FG } }, "插件库"),
-        h("div", { style: { color: MUTED, marginBottom: 12 } }, "从 Sakana-yuyu/dsh-plugins 目录一键安装"),
-        h("form", {
-          onSubmit: onSearch,
-          style: { display: "flex", gap: 8, marginBottom: 10, maxWidth: "100%" }
+      return h("div", {
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          minHeight: 0,
+          color: FG,
+          fontSize: 13,
+          lineHeight: "20px",
+          boxSizing: "border-box"
+        }
+      },
+        h("div", {
+          style: {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 14px",
+            borderBottom: "1px solid " + LINE,
+            flexShrink: 0
+          }
+        },
+          h("div", { style: { fontSize: 16, fontWeight: 600, color: FG } }, "插件库"),
+          h("button", { type: "button", onClick: onClose, style: btnStyle(false, false) }, "关闭")
+        ),
+        h("div", {
+          style: {
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            padding: "12px 14px 20px"
+          }
+        },
+          h("form", {
+            onSubmit: onSearch,
+            style: { display: "flex", gap: 8, marginBottom: 10, maxWidth: "100%" }
+          },
+            h("input", {
+              value: draft,
+              onChange: function (e) { setDraft(e.target.value); },
+              placeholder: "搜索名称、作者或描述",
+              style: inputStyle()
+            }),
+            h("button", { type: "submit", style: btnStyle(false, true) }, "搜索")
+          ),
+          h("div", { style: { marginBottom: 6 } }, chips),
+          h("div", { style: { marginBottom: 10 } }, catChips),
+          loading ? h("div", { style: { color: MUTED } }, "加载目录中…") : null,
+          error ? h("div", { style: { color: ERR, marginBottom: 8 } }, error) : null,
+          (!loading && !error) ? h("div", { style: { color: MUTED, marginBottom: 8 } },
+            "共 " + matched.length + " 个插件 · 第 " + cur + "/" + pages + " 页"
+          ) : null,
+          cards,
+          (!loading && !error && matched.length === 0) ? h("div", { style: { color: MUTED } }, "没有匹配的插件") : null,
+          (!loading && !error && matched.length > 0) ? h("div", {
+            style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }
+          },
+            h("button", {
+              type: "button",
+              disabled: cur <= 1,
+              onClick: function () { setPage(cur - 1); },
+              style: btnStyle(cur <= 1, false)
+            }, "上一页"),
+            h("span", { style: { color: MUTED, fontSize: 12 } }, cur + " / " + pages),
+            h("button", {
+              type: "button",
+              disabled: cur >= pages,
+              onClick: function () { setPage(cur + 1); },
+              style: btnStyle(cur >= pages, false)
+            }, "下一页")
+          ) : null
+        )
+      );
+    }
+
+    function SidebarStore(props) {
+      var ui0 = readLocalUi();
+      var sh = useState(ui0.showSidebar);
+      var show = sh[0], setShow = sh[1];
+      var cs = useState(ui0.coverSize);
+      var coverSize = cs[0], setCoverSize = cs[1];
+      var op = useState(false);
+      var open = op[0], setOpen = op[1];
+
+      useEffect(function () {
+        var dead = false;
+        fetch("/api/dsh-plugins/prefs")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (dead || !data || !data.ok || !data.prefs) return;
+            var p = data.prefs;
+            var nextShow = p.showSidebar !== false;
+            var nextCover = p.coverSize === "medium" ? "medium" : "large";
+            setShow(nextShow);
+            setCoverSize(nextCover);
+            writeLocalUi({ showSidebar: nextShow, coverSize: nextCover });
+          })
+          .catch(function () {});
+        function onEvt(e) {
+          var d = (e && e.detail) || readLocalUi();
+          setShow(d.showSidebar !== false);
+          if (d.coverSize) setCoverSize(d.coverSize);
+          if (d.showSidebar === false) setOpen(false);
+        }
+        function onStorage(e) {
+          if (e.key === LS_KEY) onEvt();
+        }
+        function onKey(e) {
+          if (e.key === "Escape") setOpen(false);
+        }
+        window.addEventListener(EVT, onEvt);
+        window.addEventListener("storage", onStorage);
+        window.addEventListener("keydown", onKey);
+        return function () {
+          dead = true;
+          window.removeEventListener(EVT, onEvt);
+          window.removeEventListener("storage", onStorage);
+          window.removeEventListener("keydown", onKey);
+        };
+      }, []);
+
+      if (show === false) return null;
+
+      var wide = !!(props && props.wide);
+      var btn = h("button", {
+        type: "button",
+        onClick: function () { setOpen(!open); },
+        style: {
+          width: "100%",
+          padding: wide ? "6px 10px" : "6px 4px",
+          borderRadius: 6,
+          border: "1px solid " + LINE,
+          background: BG,
+          color: FG,
+          cursor: "pointer",
+          fontSize: wide ? 13 : 12,
+          lineHeight: "18px"
+        }
+      }, wide ? "插件库" : "库");
+
+      var drawer = open ? overlay(h("div", { key: "dsh-plugins-drawer" },
+        h("div", {
+          onClick: function () { setOpen(false); },
+          style: {
+            position: "fixed",
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            background: "color-mix(in srgb, var(--dsw-alias-label-primary) 28%, transparent)",
+            zIndex: 12000
+          }
+        }),
+        h("div", {
+          style: {
+            position: "fixed",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: "min(520px, 92vw)",
+            zIndex: 12001,
+            background: BG,
+            color: FG,
+            borderRight: "1px solid " + LINE,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden"
+          }
+        }, h(CatalogDrawer, {
+          coverSize: coverSize,
+          onClose: function () { setOpen(false); }
+        }))
+      )) : null;
+
+      return h("div", { style: { width: "100%" } }, btn, drawer);
+    }
+
+    function SettingsManage() {
+      var ui0 = readLocalUi();
+      var pf = useState({
+        showSidebar: ui0.showSidebar,
+        coverSize: ui0.coverSize,
+        autoUpdateSelf: true,
+        autoUpdateOthers: false
+      });
+      var prefs = pf[0], setPrefs = pf[1];
+      var st = useState("");
+      var status = st[0], setStatus = st[1];
+      var bz = useState(false);
+      var busy = bz[0], setBusy = bz[1];
+
+      useEffect(function () {
+        var dead = false;
+        fetch("/api/dsh-plugins/prefs")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (dead || !data || !data.ok || !data.prefs) return;
+            setPrefs(data.prefs);
+            writeLocalUi({
+              showSidebar: data.prefs.showSidebar !== false,
+              coverSize: data.prefs.coverSize
+            });
+          })
+          .catch(function () {});
+        return function () { dead = true; };
+      }, []);
+
+      function patchPrefs(partial) {
+        setPrefs(function (p) { return Object.assign({}, p, partial); });
+        if (partial.showSidebar !== undefined || partial.coverSize) writeLocalUi(partial);
+        fetch("/api/dsh-plugins/prefs", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(partial)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.ok && data.prefs) setPrefs(data.prefs);
+          })
+          .catch(function () {});
+      }
+
+      function checkNow() {
+        if (busy) return;
+        setBusy(true);
+        setStatus("正在检查更新…");
+        fetch("/api/dsh-plugins/updates")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data || !data.ok) {
+              setStatus((data && (data.error || data.message)) || "检查失败");
+              return;
+            }
+            var self = data.self || {};
+            var lines = [];
+            lines.push("本插件 " + (self.full_name || "Sakana-yuyu/dsh-plugins") +
+              " 当前 " + (self.current || "-") +
+              " / 最新 " + (self.latestSha || "-") +
+              (self.newer ? " · 有更新" : " · 已是最新"));
+            var inst = data.installed || [];
+            if (!inst.length) lines.push("未发现已安装的 github: 目录插件");
+            else {
+              lines.push("已安装 " + inst.length + " 个：");
+              for (var i = 0; i < inst.length; i++) {
+                lines.push("- " + inst[i].full_name + " (" + inst[i].spec + ")");
+              }
+            }
+            setStatus(lines.join("\n"));
+          })
+          .catch(function (e) {
+            setStatus(String((e && e.message) || e || "检查失败"));
+          })
+          .then(function () { setBusy(false); });
+      }
+
+      function postUpdate(target) {
+        if (busy) return;
+        setBusy(true);
+        setStatus(target === "all" ? "正在更新全部…" : "正在更新本插件…");
+        fetch("/api/dsh-plugins/update", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ target: target })
+        })
+          .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
+          .then(function (data) {
+            var text;
+            if (data && data.ok && data.launched) text = data.message || "已打开 PowerShell 更新窗口，完成后请重启 DSH";
+            else if (data && data.ok) text = data.message || "已更新，请重启 DSH";
+            else text = (data && (data.message || data.error || data.stderr)) || "更新失败";
+            setStatus(String(text));
+          })
+          .catch(function (e) {
+            setStatus(String((e && e.message) || e || "更新失败"));
+          })
+          .then(function () { setBusy(false); });
+      }
+
+      function toggleRow(label, on, set) {
+        return h("label", {
+          style: { display: "flex", alignItems: "center", gap: 8, margin: "10px 0", cursor: "pointer", color: FG }
         },
           h("input", {
-            value: draft,
-            onChange: function (e) { setDraft(e.target.value); },
-            placeholder: "搜索名称、作者或描述",
-            style: inputStyle()
+            type: "checkbox",
+            checked: !!on,
+            onChange: function (e) { set(e.target.checked); }
           }),
-          h("button", { type: "submit", style: btnStyle(false, true) }, "搜索")
+          h("span", null, label)
+        );
+      }
+
+      return h("div", {
+        style: {
+          padding: "8px 4px 16px",
+          color: FG,
+          fontSize: 13,
+          lineHeight: "20px",
+          maxWidth: "100%",
+          boxSizing: "border-box"
+        }
+      },
+        h("div", { style: { fontSize: 16, fontWeight: 600, marginBottom: 4, color: FG } }, "插件库"),
+        h("div", { style: { color: MUTED, marginBottom: 12 } }, "管理侧边栏展示和自动更新"),
+        toggleRow("在侧边栏显示插件库", prefs.showSidebar !== false, function (v) { patchPrefs({ showSidebar: v }); }),
+        h("div", { style: { margin: "10px 0 6px", color: FG } }, "封面大小"),
+        h("div", { style: { marginBottom: 10 } },
+          h("button", {
+            type: "button",
+            onClick: function () { patchPrefs({ coverSize: "large" }); },
+            style: chipStyle(prefs.coverSize !== "medium")
+          }, "大图"),
+          h("button", {
+            type: "button",
+            onClick: function () { patchPrefs({ coverSize: "medium" }); },
+            style: chipStyle(prefs.coverSize === "medium")
+          }, "中图")
         ),
-        h("div", { style: { marginBottom: 6 } }, chips),
-        h("div", { style: { marginBottom: 10 } }, catChips),
-        loading ? h("div", { style: { color: MUTED } }, "加载目录中…") : null,
-        error ? h("div", { style: { color: ERR, marginBottom: 8 } }, error) : null,
-        (!loading && !error) ? h("div", { style: { color: MUTED, marginBottom: 8 } },
-          "共 " + matched.length + " 个插件 · 第 " + cur + "/" + pages + " 页"
-        ) : null,
-        cards,
-        (!loading && !error && matched.length === 0) ? h("div", { style: { color: MUTED } }, "没有匹配的插件") : null,
-        (!loading && !error && matched.length > 0) ? h("div", {
-          style: { display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }
-        },
-          h("button", {
-            type: "button",
-            disabled: cur <= 1,
-            onClick: function () { setPage(cur - 1); },
-            style: btnStyle(cur <= 1, false)
-          }, "上一页"),
-          h("span", { style: { color: MUTED, fontSize: 12 } }, cur + " / " + pages),
-          h("button", {
-            type: "button",
-            disabled: cur >= pages,
-            onClick: function () { setPage(cur + 1); },
-            style: btnStyle(cur >= pages, false)
-          }, "下一页")
-        ) : null
+        toggleRow("自动更新本目录插件", !!prefs.autoUpdateSelf, function (v) { patchPrefs({ autoUpdateSelf: v }); }),
+        toggleRow("自动更新已安装的目录插件", !!prefs.autoUpdateOthers, function (v) { patchPrefs({ autoUpdateOthers: v }); }),
+        h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 } },
+          h("button", { type: "button", disabled: busy, onClick: checkNow, style: btnStyle(busy, true) }, "立即检查更新"),
+          h("button", { type: "button", disabled: busy, onClick: function () { postUpdate("self"); }, style: btnStyle(busy, false) }, "更新本插件"),
+          h("button", { type: "button", disabled: busy, onClick: function () { postUpdate("all"); }, style: btnStyle(busy, false) }, "更新全部")
+        ),
+        status ? h("div", {
+          style: {
+            marginTop: 10,
+            color: MUTED,
+            whiteSpace: "pre-wrap",
+            fontSize: 12,
+            lineHeight: "18px"
+          }
+        }, status) : null,
+        h("div", { style: { marginTop: 14 } },
+          h("a", {
+            href: SITE,
+            target: "_blank",
+            rel: "noreferrer",
+            style: { color: BRAND, textDecoration: "none", fontSize: 12 }
+          }, "在线目录")
+        )
       );
     }
 
     function apply(ctx) {
-      ctx.slots.inject("settings.section", () =>
-        ctx.slots.register({
-          name: "settings.section",
-          id: "dsh-plugins-catalog",
-          order: 55,
-          label: () => "插件库",
-          inject: () => ({}),
-        }, CatalogPanel));
+      ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
+        name: "sidebar.footer.action",
+        id: "dsh-plugins-catalog",
+        order: 40,
+        label: () => "插件库",
+        inject: () => ({}),
+      }, SidebarStore));
+      ctx.slots.inject("settings.section", () => ctx.slots.register({
+        name: "settings.section",
+        id: "dsh-plugins-catalog",
+        order: 55,
+        label: () => "插件库",
+        inject: () => ({}),
+      }, SettingsManage));
     }
 
     exports.name = "dsh-plugins-catalog-client";
