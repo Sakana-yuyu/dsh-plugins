@@ -6,7 +6,7 @@
 
 <p align="center">
   按 GitHub stars 排名的 DeepSeek Harness 插件<br>
-  由 <a href="https://github.com/Sakana-yuyu">R Sakana</a> 维护 · <a href="https://x.com/Sakana19446R">@Sakana19446R</a> 🐟
+  由 <a href="https://github.com/Sakana-yuyu">R Sakana</a> 维护 🐟
 </p>
 
 <p align="center">
