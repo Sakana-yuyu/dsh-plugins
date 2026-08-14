@@ -1,11 +1,3 @@
-        '@media (max-width:1100px){[data-dsh-plugins-grid]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}',
-        '@media (max-width:720px){[data-dsh-plugins-grid]{grid-template-columns:1fr!important}}'
-      ].join("");
-      var extra = [];
-      function hideNode(el) {
-        if (!el || el.getAttribute("data-dsh-plugins-hid")) return;
-        if (el.querySelector && el.querySelector("[data-dsh-plugins-catalog]")) return;
-        el.setAttribute("data-dsh-plugins-hid", "1");
         el.setAttribute("data-dsh-plugins-disp", el.style.display || "");
         el.style.display = "none";
         extra.push(el);
@@ -200,3 +192,26 @@
       return node;
     }
 
+    function sectionTitle(text) {
+      return h("div", {
+        style: { fontSize: 13, fontWeight: 600, color: FG, margin: "16px 0 8px" }
+      }, text);
+    }
+
+    function DetailModal(props) {
+      var p = props.p;
+      var detail = props.detail;
+      var onClose = props.onClose;
+      var full = p.full_name || "";
+      var pkgName = p.npm_name || p.name || "";
+      var id = pkgName || full;
+      var author = p.author || ownerOf(full);
+      var zh = p.description_zh || p.description || "";
+      var en = p.description_en || "";
+      var imgs = (detail && detail.images) || [];
+      if (imgs.length > 16) imgs = imgs.slice(0, 16);
+      var shot = [];
+      for (var ii = 0; ii < imgs.length; ii++) {
+        (function (src, idx) {
+          shot.push(h("a", {
+            key: String(idx) + src,

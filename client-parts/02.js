@@ -1,7 +1,3 @@
-        }, "上一页"),
-        h("form", {
-          onSubmit: function (e) { if (e && e.preventDefault) e.preventDefault(); go(jump); },
-          style: { display: "flex", alignItems: "center", gap: 6 }
         },
           h("input", {
             value: jump,
@@ -160,21 +156,28 @@
           onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
           style: {
             width: "min(420px, 92vw)",
-            background: BG,
-            color: FG,
+            background: "#ffffff",
+            color: "#111827",
             borderRadius: 12,
-            border: "1px solid " + LINE,
+            border: "1px solid #e5e7eb",
             padding: "18px 20px 20px",
-            boxSizing: "border-box"
+            boxSizing: "border-box",
+            boxShadow: "0 16px 40px rgba(0,0,0,0.22)"
           }
         },
-          h("div", { style: { fontSize: 18, fontWeight: 650, color: FG, marginBottom: 10 } }, "更新完成"),
-          h("div", { style: { fontSize: 13, lineHeight: "22px", color: FG, marginBottom: 16 } },
+          h("div", { style: { fontSize: 18, fontWeight: 650, color: "#111827", marginBottom: 10 } }, "更新完成"),
+          h("div", { style: { fontSize: 13, lineHeight: "22px", color: "#374151", marginBottom: 16 } },
             "插件已更新。要现在重启应用吗？不重启的话，新版本要等下次启动才生效。"
           ),
           h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" } },
-            h("button", { type: "button", onClick: props.onLater, style: btnStyle(false, false) }, "稍后"),
-            h("button", { type: "button", onClick: props.onRestart, style: btnStyle(false, true) }, "立即重启")
+            h("button", { type: "button", onClick: props.onLater, style: {
+              padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db",
+              background: "#fff", color: "#111827", fontWeight: 600, cursor: "pointer"
+            } }, "稍后"),
+            h("button", { type: "button", onClick: props.onRestart, style: {
+              padding: "8px 14px", borderRadius: 8, border: "1px solid #2563eb",
+              background: "#2563eb", color: "#ffffff", fontWeight: 650, cursor: "pointer"
+            } }, "立即重启")
           )
         )
       );
@@ -196,3 +199,11 @@
         'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.footer"]{display:none!important}',
         'html[data-dsh-plugins-store="1"] [data-slot="conversation.input"]{display:none!important}',
         '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}[data-dsh-plugins-grid]>*{height:100%;min-width:0}',
+        '@media (max-width:1100px){[data-dsh-plugins-grid]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}',
+        '@media (max-width:720px){[data-dsh-plugins-grid]{grid-template-columns:1fr!important}}'
+      ].join("");
+      var extra = [];
+      function hideNode(el) {
+        if (!el || el.getAttribute("data-dsh-plugins-hid")) return;
+        if (el.querySelector && el.querySelector("[data-dsh-plugins-catalog]")) return;
+        el.setAttribute("data-dsh-plugins-hid", "1");

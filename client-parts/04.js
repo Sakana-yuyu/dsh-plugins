@@ -1,24 +1,3 @@
-    function sectionTitle(text) {
-      return h("div", {
-        style: { fontSize: 13, fontWeight: 600, color: FG, margin: "16px 0 8px" }
-      }, text);
-    }
-
-    function DetailModal(props) {
-      var p = props.p;
-      var detail = props.detail;
-      var onClose = props.onClose;
-      var full = p.full_name || "";
-      var author = p.author || ownerOf(full);
-      var zh = p.description_zh || p.description || "";
-      var en = p.description_en || "";
-      var imgs = (detail && detail.images) || [];
-      if (imgs.length > 16) imgs = imgs.slice(0, 16);
-      var shot = [];
-      for (var ii = 0; ii < imgs.length; ii++) {
-        (function (src, idx) {
-          shot.push(h("a", {
-            key: String(idx) + src,
             href: src,
             target: "_blank",
             rel: "noreferrer",
@@ -62,12 +41,13 @@
             width: "min(920px, 94vw)",
             maxHeight: "88vh",
             overflow: "auto",
-            background: BG,
-            color: FG,
+            background: "#ffffff",
+            color: "#111827",
             borderRadius: 12,
-            border: "1px solid " + LINE,
+            border: "1px solid #e5e7eb",
             padding: "18px 20px 24px",
-            boxSizing: "border-box"
+            boxSizing: "border-box",
+            boxShadow: "0 16px 40px rgba(0,0,0,0.22)"
           }
         },
           h("div", {
@@ -80,7 +60,7 @@
             }
           },
             h("div", { style: { minWidth: 0 } },
-              h("div", { style: { fontSize: 18, fontWeight: 650, color: FG } }, p.name || full),
+              h("div", { style: { fontSize: 18, fontWeight: 650, color: FG } }, p.name || pkgName || full),
               h("div", { style: { color: MUTED, fontSize: 12, marginTop: 4 } },
                 (author ? author + " · " : "") + (p.category_zh || p.category || "") +
                 (full ? " · " + full : "")
@@ -198,3 +178,36 @@
         },
         style: {
           border: "1px solid " + LINE,
+          background: BG,
+          borderRadius: 8,
+          padding: 10,
+          overflow: "hidden",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          minWidth: 0,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          cursor: "pointer"
+        }
+      },
+        cover ? h("img", {
+          src: cover,
+          alt: "",
+          style: {
+            width: "100%",
+            height: "auto",
+            maxHeight: hCover || "none",
+            aspectRatio: "2 / 1",
+            objectFit: "contain",
+            objectPosition: "center top",
+            background: "rgba(0,0,0,0.06)",
+            borderRadius: 6,
+            marginBottom: 8,
+            display: "block"
+          }
+        }) : null,
+        h("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+          h("span", { style: { fontWeight: 600, fontSize: 14, color: FG } }, p.name || pkgName || full),
+          installed ? h("span", {
+            style: {

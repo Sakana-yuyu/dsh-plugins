@@ -1,46 +1,24 @@
-      function markRestart() {
-        writeRestartNeeded(true);
-        setRestartNeeded(true);
-      }
-      function refreshInstalled() {
-        fetchInstalled(function (err, list) {
-          if (list) setInstalled(list);
-        });
-      }
-      function applyUpdateData(data, info) {
-        if (info) {
-          setUpdateInfo(info);
-          setNewerCount(info.newerCount || 0);
-        } else if (data && data.self) {
-          setUpdateInfo({
-            ok: !!data.ok,
-            newer: !!(data.self && data.self.newer),
-            current: (data.self && data.self.current) || "",
-            latest: (data.self && data.self.latest) || "",
-            latestSha: (data.self && data.self.latestSha) || "",
-            status: (data.self && data.self.status) || "",
-            newerCount: data.newerCount || 0,
-            installed: data.installed || []
-          });
-          setNewerCount(data.newerCount || 0);
-        }
-        var rows = (data && data.installed) || (info && info.installed) || [];
         if (rows && rows.length) {
           setInstalled(function (cur) {
             var byFull = {};
             for (var i = 0; i < rows.length; i++) {
+              var k = itemKey(rows[i]);
+              if (k) byFull[k] = rows[i];
               if (rows[i] && rows[i].full_name) byFull[rows[i].full_name] = rows[i];
             }
             if (!cur || !cur.length) return rows;
             var seen = {};
             var merged = cur.map(function (row) {
-              var u = byFull[row.full_name];
-              seen[row.full_name] = true;
+              var k = itemKey(row);
+              var u = byFull[k] || byFull[row.full_name];
+              if (k) seen[k] = true;
+              if (row.full_name) seen[row.full_name] = true;
               return u ? Object.assign({}, row, u) : row;
             });
             for (var j = 0; j < rows.length; j++) {
               var add = rows[j];
-              if (add && add.full_name && !seen[add.full_name]) merged.push(add);
+              var ak = itemKey(add);
+              if (add && ak && !seen[ak] && !seen[add.full_name]) merged.push(add);
             }
             return merged;
           });
@@ -109,7 +87,7 @@
         setPage(1);
       }, [draft]);
 
-      var install = useCallback(function (full) {
+      var install = useCallback(function (full, item) {
         if (!full || busy[full]) return;
         setBusy(function (b) {
           var n = {};
@@ -123,10 +101,12 @@
           delete n[full];
           return n;
         });
+        var payload = { full_name: (item && item.full_name) || full };
+        if (item && item.npm_name) { payload.spec = item.npm_name; payload.name = item.npm_name; }
         fetch("/api/dsh-plugins/install", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ full_name: full })
+          body: JSON.stringify(payload)
         })
           .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
           .then(function (data) {
@@ -212,3 +192,33 @@
 
       function afterUpdateOk() {
         markRestart();
+        setShowRestartModal(true);
+        refreshUpdates();
+      }
+      function updateOne(full) {
+        if (!full || busyUp[full]) return;
+        setBusyUp(function (b) {
+          var n = {};
+          for (var k in b) n[k] = b[k];
+          n[full] = true;
+          return n;
+        });
+        runUpdate(full, function (err, data) {
+          setBusyUp(function (b) {
+            var n = {};
+            for (var k in b) if (k !== full) n[k] = b[k];
+            return n;
+          });
+          if (err || !data || !data.ok) {
+            setNotes(function (m) {
+              var n = {};
+              for (var k in m) n[k] = m[k];
+              n[full] = { ok: false, text: String((err && err.message) || (data && (data.message || data.error)) || "更新失败") };
+              return n;
+            });
+            return;
+          }
+          setNotes(function (m) {
+            var n = {};
+            for (var k in m) n[k] = m[k];
+            n[full] = { ok: true, text: "已更新 " + full };

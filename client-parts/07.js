@@ -1,33 +1,3 @@
-        setShowRestartModal(true);
-        refreshUpdates();
-      }
-      function updateOne(full) {
-        if (!full || busyUp[full]) return;
-        setBusyUp(function (b) {
-          var n = {};
-          for (var k in b) n[k] = b[k];
-          n[full] = true;
-          return n;
-        });
-        runUpdate(full, function (err, data) {
-          setBusyUp(function (b) {
-            var n = {};
-            for (var k in b) if (k !== full) n[k] = b[k];
-            return n;
-          });
-          if (err || !data || !data.ok) {
-            setNotes(function (m) {
-              var n = {};
-              for (var k in m) n[k] = m[k];
-              n[full] = { ok: false, text: String((err && err.message) || (data && (data.message || data.error)) || "更新失败") };
-              return n;
-            });
-            return;
-          }
-          setNotes(function (m) {
-            var n = {};
-            for (var k in m) n[k] = m[k];
-            n[full] = { ok: true, text: "已更新 " + full };
             return n;
           });
           afterUpdateOk();
@@ -49,7 +19,10 @@
 
       var installedMap = {};
       for (var im = 0; im < installed.length; im++) {
+        var ik = itemKey(installed[im]);
+        if (ik) installedMap[ik] = installed[im];
         if (installed[im] && installed[im].full_name) installedMap[installed[im].full_name] = installed[im];
+        if (installed[im] && installed[im].npm_name) installedMap[installed[im].npm_name] = installed[im];
       }
 
       var matched = [];
@@ -58,7 +31,7 @@
           var card = cardFromInstalled(installed[i]);
           var q = query || "";
           if (q) {
-            var blob = [card.name, card.full_name, card.author].join(" ").toLowerCase();
+            var blob = [card.name, card.full_name, card.author, card.npm_name].join(" ").toLowerCase();
             if (blob.indexOf(q) < 0) continue;
           }
           matched.push(card);
@@ -101,7 +74,8 @@
       for (var j = 0; j < shown.length; j++) {
         (function (item) {
           var full = item.full_name || "";
-          var row = installedMap[full];
+          var id = itemKey(item) || full;
+          var row = installedMap[id] || installedMap[full] || installedMap[item.npm_name] || installedMap[item.name];
           var cardItem = item;
           if (row) {
             cardItem = {};
@@ -115,13 +89,13 @@
             if (row.status) cardItem.status = row.status;
           }
           cards.push(h(PluginCard, {
-            key: full || String(item.rank) + item.name,
+            key: id || full || String(item.rank) + item.name,
             p: cardItem,
             install: install,
             uninstall: uninstall,
-            waiting: !!busy[full],
-            busyUn: !!busyUn[full],
-            busyUp: !!busyUp[full],
+            waiting: !!busy[id] || !!busy[full],
+            busyUn: !!busyUn[id] || !!busyUn[full],
+            busyUp: !!busyUp[id] || !!busyUp[full],
             hasUpdate: !!(cardItem.newer || (row && row.newer)),
             onUpdate: updateOne,
             installed: !!(row || item.installed),
@@ -212,3 +186,27 @@
           h(UpdateBanner, {
             info: updateInfo,
             busy: updating,
+            note: updateNote,
+            onRetry: function () { refreshUpdates(); },
+            onUpdate: function () {
+              if (updating) return;
+              setUpdating(true);
+              setUpdateNote(null);
+              runUpdate("self", function (err, data) {
+                setUpdating(false);
+                if (err) {
+                  setUpdateNote({ ok: false, text: String((err && err.message) || err || "更新失败") });
+                  return;
+                }
+                if (data && data.ok) {
+                  setUpdateNote(null);
+                  setUpdateInfo(function (cur) { return cur ? Object.assign({}, cur, { newer: false }) : cur; });
+                  afterUpdateOk();
+                } else {
+                  setUpdateNote({ ok: false, text: (data && (data.message || data.error)) || "更新失败" });
+                }
+              });
+            }
+          }),
+          h(RestartModal, {
+            show: showRestartModal,

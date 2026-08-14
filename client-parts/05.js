@@ -1,36 +1,3 @@
-          background: BG,
-          borderRadius: 8,
-          padding: 10,
-          overflow: "hidden",
-          maxWidth: "100%",
-          boxSizing: "border-box",
-          minWidth: 0,
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          cursor: "pointer"
-        }
-      },
-        cover ? h("img", {
-          src: cover,
-          alt: "",
-          style: {
-            width: "100%",
-            height: "auto",
-            maxHeight: hCover || "none",
-            aspectRatio: "2 / 1",
-            objectFit: "contain",
-            objectPosition: "center top",
-            background: "rgba(0,0,0,0.06)",
-            borderRadius: 6,
-            marginBottom: 8,
-            display: "block"
-          }
-        }) : null,
-        h("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
-          h("span", { style: { fontWeight: 600, fontSize: 14, color: FG } }, p.name || full),
-          installed ? h("span", {
-            style: {
               fontSize: 11,
               padding: "1px 6px",
               borderRadius: 999,
@@ -59,6 +26,9 @@
               background: BG
             }
           }, "官方") : null,
+          (p.install_method === "npm" || p.npm_name) ? h("span", {
+            style: { fontSize: 11, padding: "1px 6px", borderRadius: 999, border: "1px solid " + BRAND, color: BRAND, background: BG }
+          }, "npm") : null,
           h("span", { style: { color: MUTED, fontSize: 12 } }, "stars " + (p.stars || 0))
         ),
         h("div", { style: { color: MUTED, fontSize: 12, marginTop: 4 } },
@@ -67,6 +37,7 @@
         (p.current || p.latest) ? h("div", { style: { color: MUTED, fontSize: 12, marginTop: 2 } },
           "当前 " + (p.current || "-") + (p.latest ? " → 最新 " + p.latest : "")
         ) : null,
+        (p.install_method === "npm" || p.npm_name) ? h("div", { style: { color: MUTED, fontSize: 11, marginTop: 2 } }, "请用 npm 包名安装，不要用 github:") : null,
         p.status === "error" ? h("div", { style: { color: MUTED, fontSize: 11, marginTop: 2 } }, "检查失败") : null,
         h("div", {
           style: {
@@ -91,22 +62,22 @@
         h("div", { style: { marginTop: "auto", paddingTop: 10, display: "flex", gap: 8, flexWrap: "wrap" } },
           (!installed) ? h("button", {
             type: "button",
-            disabled: waiting || !full,
-            onClick: function () { if (install) install(full); },
-            style: btnStyle(waiting || !full, true)
+            disabled: waiting || !id,
+            onClick: function () { if (install) install(id, p); },
+            style: btnStyle(waiting || !id, true)
           }, waiting ? "安装中…" : "安装") : null,
           (installed && hasUpdate && onUpdate) ? h("button", {
             type: "button",
-            disabled: busyUp || !full,
-            onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onUpdate(full); },
-            style: btnStyle(busyUp || !full, true)
+            disabled: busyUp || !id,
+            onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onUpdate(id); },
+            style: btnStyle(busyUp || !id, true)
           }, busyUp ? "更新中…" : "更新") : null,
           installed ? h("button", {
             type: "button",
-            disabled: busyUn || isSelf || !full,
+            disabled: busyUn || isSelf || !id || p.removable === false,
             title: isSelf ? "这是插件库本身" : "卸载此插件",
-            onClick: function () { if (uninstall) uninstall(full); },
-            style: btnStyle(busyUn || isSelf || !full, false, !isSelf)
+            onClick: function () { if (uninstall) uninstall(id); },
+            style: btnStyle(busyUn || isSelf || !id || p.removable === false, false, !isSelf)
           }, busyUn ? "卸载中…" : "卸载") : null,
           h("button", {
             type: "button",
@@ -191,3 +162,30 @@
       var listRef = useRef(null);
       var checkedInstalled = useRef(false);
 
+      function markRestart() {
+        writeRestartNeeded(true);
+        setRestartNeeded(true);
+      }
+      function refreshInstalled() {
+        fetchInstalled(function (err, list) {
+          if (list) setInstalled(list);
+        });
+      }
+      function applyUpdateData(data, info) {
+        if (info) {
+          setUpdateInfo(info);
+          setNewerCount(info.newerCount || 0);
+        } else if (data && data.self) {
+          setUpdateInfo({
+            ok: !!data.ok,
+            newer: !!(data.self && data.self.newer),
+            current: (data.self && data.self.current) || "",
+            latest: (data.self && data.self.latest) || "",
+            latestSha: (data.self && data.self.latestSha) || "",
+            status: (data.self && data.self.status) || "",
+            newerCount: data.newerCount || 0,
+            installed: data.installed || []
+          });
+          setNewerCount(data.newerCount || 0);
+        }
+        var rows = (data && data.installed) || (info && info.installed) || [];

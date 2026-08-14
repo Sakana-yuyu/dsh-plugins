@@ -1,27 +1,3 @@
-            note: updateNote,
-            onRetry: function () { refreshUpdates(); },
-            onUpdate: function () {
-              if (updating) return;
-              setUpdating(true);
-              setUpdateNote(null);
-              runUpdate("self", function (err, data) {
-                setUpdating(false);
-                if (err) {
-                  setUpdateNote({ ok: false, text: String((err && err.message) || err || "更新失败") });
-                  return;
-                }
-                if (data && data.ok) {
-                  setUpdateNote(null);
-                  setUpdateInfo(function (cur) { return cur ? Object.assign({}, cur, { newer: false }) : cur; });
-                  afterUpdateOk();
-                } else {
-                  setUpdateNote({ ok: false, text: (data && (data.message || data.error)) || "更新失败" });
-                }
-              });
-            }
-          }),
-          h(RestartModal, {
-            show: showRestartModal,
             onLater: function () { setShowRestartModal(false); },
             onRestart: function () { setShowRestartModal(false); restartNow(); }
           }),
@@ -158,3 +134,45 @@
           if (b.closest && b.closest('[data-slot="settings.section"]')) continue;
           if (b.closest && b.closest('[data-slot="sidebar.footer.action"]')) continue;
           var label = String(b.textContent || b.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
+          if (label === "插件" || label === "插件库") {
+            try { b.click(); return true; } catch (e) {}
+          }
+        }
+      }
+      return false;
+    }
+
+    function SidebarStore(props) {
+      var ui0 = readLocalUi();
+      var sh = useState(ui0.showSidebar);
+      var show = sh[0], setShow = sh[1];
+      var cs = useState(ui0.coverSize);
+      var coverSize = cs[0], setCoverSize = cs[1];
+      var hs = useState(null);
+      var host = hs[0], setHost = hs[1];
+      var nw = useState(false);
+      var hasUpdate = nw[0], setHasUpdate = nw[1];
+
+      useEffect(function () {
+        function onUp(e) {
+          var d = (e && e.detail) || {};
+          setHasUpdate(!!d.newer || (d.newerCount > 0));
+        }
+        window.addEventListener(UPD_EVT, onUp);
+        fetchUpdateInfo(function (err, info) {
+          if (info) setHasUpdate(!!info.newer || (info.newerCount > 0));
+        });
+        return function () { window.removeEventListener(UPD_EVT, onUp); };
+      }, []);
+
+      useEffect(function () {
+        var dead = false;
+        fetch("/api/dsh-plugins/prefs")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (dead || !data || !data.ok || !data.prefs) return;
+            var p = data.prefs;
+            var nextShow = p.showSidebar !== false;
+            var nextCover = p.coverSize === "medium" ? "medium" : "large";
+            setShow(nextShow);
+            setCoverSize(nextCover);

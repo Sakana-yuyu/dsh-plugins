@@ -30,13 +30,13 @@
       { id: "official", zh: "官方" },
       { id: "community", zh: "社区" }
     ];
-    var BRAND = "var(--dsw-alias-brand-primary-new-colorprimary-new-color)";
-    var FG = "var(--dsw-alias-label-primary)";
-    var MUTED = "var(--dsw-alias-label-tertiary)";
-    var LINE = "var(--dsw-alias-border-l2)";
-    var BG = "var(--dsw-alias-bg-module-platform)";
-    var ERR = "var(--dsw-alias-state-error-primary)";
-    var OK = "var(--dsw-alias-state-success-primary)";
+    var BRAND = "#2563eb";
+    var FG = "#111827";
+    var MUTED = "#6b7280";
+    var LINE = "#e5e7eb";
+    var BG = "#ffffff";
+    var ERR = "#dc2626";
+    var OK = "#16a34a";
     var LS_KEY = "dsh-plugins-ui";
     var EVT = "dsh-plugins-ui";
     var UPD_EVT = "dsh-plugins-update";
@@ -142,7 +142,12 @@
       c.version = row.version || c.current || "";
       return c;
     }
+    function itemKey(row) {
+      if (!row) return "";
+      return row.name || row.npm_name || row.full_name || row.spec || "";
+    }
     function cardFromInstalled(row) {
+
       if (row && row.catalog) {
         var c = {};
         for (var k in row.catalog) c[k] = row.catalog[k];
@@ -154,10 +159,15 @@
         return attachUpdateFields(c, row);
       }
       var full = (row && row.full_name) || "";
+      var pkgName = (row && row.name) || "";
       var slash = full.indexOf("/");
       return attachUpdateFields({
-        name: (row && row.name) || full,
+        name: pkgName || full,
         full_name: full,
+        npm_name: (row && row.npm_name) || "",
+        install_method: (row && row.install_method) || (row && row.source) || "",
+        source: (row && row.source) || "",
+        removable: row && row.removable !== false,
         description: (row && row.spec) || "",
         install: "",
         author: slash > 0 ? full.slice(0, slash) : "",
@@ -195,3 +205,7 @@
           disabled: cur <= 1,
           onClick: function () { go(cur - 1); },
           style: btnStyle(cur <= 1, false)
+        }, "上一页"),
+        h("form", {
+          onSubmit: function (e) { if (e && e.preventDefault) e.preventDefault(); go(jump); },
+          style: { display: "flex", alignItems: "center", gap: 6 }

@@ -266,12 +266,17 @@ function expand(p) {
     stars: p.s || p.stars, language: p.l || p.language,
     official: !!(p.o || p.official), category: c,
     category_zh: p.category_zh || labels.zh, category_en: p.category_en || labels.en,
-    clone_url: p.clone_url || ("https://github.com/" + full + ".git")
+    clone_url: p.clone_url || ("https://github.com/" + full + ".git"),
+    install: p.im || p.install || "github",
+    npm_name: p.npm || p.npm_name || ""
   };
   if (path) out.path = path;
   return out;
 }
 function installCmd(p) {
+  const pkg = String((p && (p.npm_name || p.npm)) || "").trim();
+  const method = (p && (p.install === "npm" || p.im === "npm"));
+  if (method && pkg) return "dsh plugin --profile web add \"" + pkg + "\"";
   const spec = (p.full_name || "").replace(/^\/+/, "");
   const raw = String((p && p.path) || "").trim();
   const extra = raw && !raw.includes("..") ? ("#path:" + raw) : "";
@@ -313,6 +318,7 @@ function card(p) {
   const full = p.full_name || "";
   const img = p.image || ogUrl(full);
   const off = p.official ? `<span class="badge off">${lang==="zh"?"官方":"Official"}</span>` : "";
+  const npmBadge = (p.install === "npm" || p.im === "npm" || p.npm_name) ? `<span class="badge">npm</span>` : "";
   const cmd = installCmd(p);
   const author = ownerOf(p);
   return `<article class="card" data-full="${esc(full)}">
@@ -320,9 +326,9 @@ function card(p) {
     <div class="body">
       <div class="name">${esc(p.name)}</div>
       <div class="author" title="${esc(i.author)}">@${esc(author)}</div>
-      <div class="row"><span class="stars">★ ${stars(p.stars)}</span>${off}<span class="badge">${esc(catLabel(p))}</span><span class="badge">${esc(p.language||"-")}</span></div>
+      <div class="row"><span class="stars">★ ${stars(p.stars)}</span>${off}${npmBadge}<span class="badge">${esc(catLabel(p))}</span><span class="badge">${esc(p.language||"-")}</span></div>
       <div class="desc">${esc(desc(p))}</div>
-      <code class="cmd" data-install="${esc(cmd)}" title="${esc(i.copyTitle)}">${esc(cmd)}</code>
+      <code class="cmd" data-install="${esc(cmd)}" title="${esc(i.copyTitle)}">${esc(cmd)}</code>${npmBadge ? `<div class="author">请用 npm 包名安装，不要用 github:</div>` : ""}
       <div class="acts"><button type="button" data-clone="${esc(p.clone_url)}">${i.clone}</button><button type="button" data-install="${esc(cmd)}">${i.install}</button><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${i.github}</a></div>
     </div></article>`;
 }

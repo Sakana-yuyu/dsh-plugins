@@ -99,6 +99,40 @@ def load_paths():
             return data
     return {}
 
+def load_install_overrides():
+    p = DOCS / "install-overrides.json"
+    if p.exists():
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return data
+    return {}
+
+
+def fetch_readme_text(full, token, branch="HEAD"):
+    if not full:
+        return ""
+    url = "https://raw.githubusercontent.com/" + full + "/" + branch + "/README.md"
+    headers = {"User-Agent": "dsh-plugins-catalog"}
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+
+
+def _load_parser():
+    try:
+        from parse_readme import parse_readme_install
+        return parse_readme_install
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from parse_readme import parse_readme_install
+        return parse_readme_install
+
 def classify(item):
     owner = (item.get("full_name") or "").split("/")[0].lower()
     if owner == "deepseek-ai":
@@ -241,6 +275,10 @@ def main():
     plugins = [to_plugin(it, i + 1, translations, paths) for i, it in enumerate(raw)]
     (DOCS / "catalog.json").write_text(json.dumps(plugins, ensure_ascii=False, indent=2) + chr(10), encoding="utf-8")
     print("wrote", len(plugins), "plugins")
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from apply_install import main as apply_main
+    apply_main()
     return 0
 
 if __name__ == "__main__":

@@ -1,0 +1,34 @@
+{
+  "zhu1090093659/dsh-web-ui": {
+    "install": "npm",
+    "npm_name": "@linxin666/dsh-web-ui-all"
+  },
+  "Anionex/dsh-vision-toolkit": {
+    "install": "npm",
+    "npm_name": "@anionex/dsh-vision-toolkit"
+  },
+  "huiliyi37/dsh-tianshu-tui": {
+    "install": "npm",
+    "npm_name": "@huiliyi37/dsh-tianshu-tui"
+  },
+  "ZSeven-W/dsh-openpencil": {
+    "install": "npm",
+    "npm_name": "@zseven-w/dsh-openpencil"
+  },
+  "Anionex/dsh-turn-rewind": {
+    "install": "npm",
+    "npm_name": "@anionex/dsh-turn-rewind"
+  },
+  "Anionex/dsh-computer-use": {
+    "install": "npm",
+    "npm_name": "@anionex/dsh-computer-use"
+  },
+  "omdsh-dev/dsh-data-agent": {
+    "install": "npm",
+    "npm_name": "@yejiming/dsh-data-agent"
+  },
+  "CanglongCl/dsh-web-review": {
+    "install": "npm",
+    "npm_name": "@canglongcl/dsh-web-review"
+  }
+}
