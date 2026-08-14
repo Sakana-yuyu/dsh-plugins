@@ -1,32 +1,52 @@
 # DSH 插件目录
 
-这是一个公开的 DeepSeek Harness（DSH）插件目录。我们从官方 GitHub topic dsh-plugin 收集仓库，按 stars 排名，并标出 deepseek-ai 官方插件与 in-tree 包。
+公开的 DeepSeek Harness（DSH）插件目录。从 GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) 收集仓库，按 stars 排名，并标出 `deepseek-ai` 官方插件。
 
 - 在线目录：https://sakana-yuyu.github.io/dsh-plugins/
 - 本仓库：https://github.com/Sakana-yuyu/dsh-plugins
 
-克隆本目录：
+## 一键把本目录装进 DSH
 
-    git clone https://github.com/Sakana-yuyu/dsh-plugins.git
+```sh
+dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"
+```
 
-## 安装插件
+装好后可以对 DSH 说「帮我找视觉插件」或「安装 liustack/modlens」。插件会搜索本目录，并执行：
 
-先取得官方核心 deepseek-ai/deepseek-harness，再向 profile 添加插件。
+```sh
+dsh plugin --profile web add "github:owner/repo"
+```
 
-    dsh plugin --profile web add "github:owner/repo"
+## 在网页里安装其他插件
 
-官方包名使用 deepseek-ai 的 dsh 前缀。官方 bundles：base、web-app、headless。
+每张卡片都有现成命令。点「安装」即复制：
+
+```sh
+dsh plugin --profile web add "github:owner/repo"
+```
+
+点「克隆」复制 `git clone` 地址。
+
+## 只克隆本目录
+
+```sh
+git clone https://github.com/Sakana-yuyu/dsh-plugins.git
+```
 
 ## 数据
 
-- docs/catalog.json：topic 扫描结果，按 stars 降序
-- docs/official.json：官方核心 + 单仓 in-tree 包组
-- 站点按功能分类，并提供中英切换与推荐区
-
-工作日北京时间 09:00（UTC 01:00，周一到周五）GitHub Action 会自动刷新目录；也可手动触发 refresh workflow。
+- 来源：GitHub topic `dsh-plugin` + `deepseek-ai/deepseek-harness`
+- 工作日自动刷新（GitHub Actions）
+- 分类：官方核心、UI 与皮肤、视觉、终端 TUI、桌面、浏览器、工作流、工具与技能、搜索与研究、开发与代码、目录与精选、其他
 
 ## English
 
-A public catalog of DeepSeek Harness plugins discovered from the dsh-plugin GitHub topic, ranked by stars. Official deepseek-ai plugins are marked.
+Star-ranked catalog of DeepSeek Harness plugins. Live site: https://sakana-yuyu.github.io/dsh-plugins/
 
-Live site: https://sakana-yuyu.github.io/dsh-plugins/
+Install this catalog into DSH:
+
+```sh
+dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"
+```
+
+Then ask DSH to search the catalog and install other plugins with `dsh plugin --profile web add "github:owner/repo"`.
