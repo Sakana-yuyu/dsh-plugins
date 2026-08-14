@@ -6,4 +6,3 @@ scripts/off*.py
 scripts/tmpfill.txt
 scripts/minify.py
 scripts/build_local.py
-scripts/fixhtml.py
