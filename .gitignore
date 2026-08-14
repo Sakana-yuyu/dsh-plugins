@@ -1,0 +1,9 @@
+docs/page*.json
+docs/hello.txt
+scripts/part*.txt
+scripts/b*.py
+scripts/off*.py
+scripts/tmpfill.txt
+scripts/minify.py
+scripts/build_local.py
+scripts/fixhtml.py
