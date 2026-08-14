@@ -44,6 +44,7 @@ h2.sec span{color:var(--muted);font-size:13px;font-weight:400}
 .desc{color:#c7ddd8;font-size:13px;line-height:1.55;min-height:3.1em}
 .acts{display:flex;gap:8px;margin-top:auto}
 .acts button,.acts a{flex:1;text-align:center;text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--teal-2);background:rgba(46,230,200,.06);font-size:13px;cursor:pointer}
+.cmd{display:block;font-size:11px;line-height:1.4;padding:8px;overflow:auto;color:var(--teal-2);white-space:nowrap}
 .official-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
 .off-mini{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(13,31,38,.85);text-decoration:none;color:inherit}
 .off-mini img{width:64px;height:36px;object-fit:cover;border-radius:6px}
@@ -70,6 +71,7 @@ code,pre{font-family:"IBM Plex Mono",monospace;background:rgba(46,230,200,.08);p
   </header>
   <div class="toolbar">
     <input id="q" type="search" placeholder="搜索插件、作者、描述…">
+    <button class="tab" id="btn-search" type="button">搜索</button>
     <div class="tabs">
       <button class="tab on" data-scope="all" type="button">全部</button>
       <button class="tab" data-scope="official" type="button">官方</button>
@@ -102,7 +104,7 @@ const I18N = {
     off: "官方推荐", offSub: "deepseek-ai 核心与 in-tree 包",
     allTitle: "全部插件", allSub: "按 stars 降序",
     stats: (n,u) => `共 ${n} 个插件 · 更新于 ${u}`,
-    clone: "克隆", copied: "已复制克隆地址", github: "GitHub",
+    clone: "克隆", install: "安装", copied: "已复制克隆地址", copiedInstall: "已复制安装命令", github: "GitHub", searchBtn: "搜索",
     catAll: "全部分类"
   },
   en: {
@@ -114,7 +116,7 @@ const I18N = {
     off: "Official picks", offSub: "deepseek-ai core and in-tree packages",
     allTitle: "All plugins", allSub: "Sorted by stars",
     stats: (n,u) => `${n} plugins · updated ${u}`,
-    clone: "Clone", copied: "Clone URL copied", github: "GitHub",
+    clone: "Clone", install: "Install", copied: "Clone URL copied", copiedInstall: "Install command copied", github: "GitHub", searchBtn: "Search",
     catAll: "All categories"
   }
 };
@@ -144,6 +146,10 @@ function expand(p) {
     clone_url: p.clone_url || ("https://github.com/" + full + ".git")
   };
 }
+function installCmd(p) {
+  const spec = (p.full_name || "").replace(/^\/+/, "");
+  return 'dsh plugin --profile web add "github:' + spec + '"';
+}
 function desc(p) { return lang === "zh" ? (p.description_zh || p.description) : (p.description_en || p.description); }
 function catLabel(p) { return lang === "zh" ? (p.category_zh || p.category) : (p.category_en || p.category); }
 function applyLang() {
@@ -151,6 +157,7 @@ function applyLang() {
   $("title").textContent = i.title;
   $("subtitle").textContent = i.subtitle;
   $("q").placeholder = i.search;
+  if ($("btn-search")) $("btn-search").textContent = i.searchBtn;
   document.querySelectorAll(".tab").forEach(b => { b.textContent = i[b.dataset.scope]; });
   $("rec-title").firstChild.textContent = i.rec + " ";
   $("rec-sub").textContent = i.recSub;
@@ -172,7 +179,8 @@ function card(p, large) {
       <div class="name"><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${esc(p.name)}</a></div>
       <div class="row"><span class="stars">★ ${stars(p.stars)}</span>${off}<span class="badge">${esc(catLabel(p))}</span><span class="badge">${esc(p.language||"—")}</span></div>
       <div class="desc">${esc(desc(p))}</div>
-      <div class="acts"><button type="button" data-clone="${esc(p.clone_url)}">${i.clone}</button><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${i.github}</a></div>
+      <code class="cmd">${esc(installCmd(p))}</code>
+      <div class="acts"><button type="button" data-clone="${esc(p.clone_url)}">${i.clone}</button><button type="button" data-install="${esc(installCmd(p))}">${i.install}</button><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${i.github}</a></div>
     </div></article>`;
 }
 function filtered() {
@@ -209,7 +217,7 @@ function render() {
   const rows = filtered();
   const latest = catalog[0] && catalog[0].updated_at ? catalog[0].updated_at.replace("T"," ").replace("Z"," UTC") : "";
   $("stats").textContent = t().stats(rows.length, latest);
-  const top = catalog.slice(0, 10);
+  const top = rows.slice(0, 10);
   $("featured").innerHTML = top.map(p => card(p, true)).join("");
   $("list").innerHTML = rows.map(p => card(p, false)).join("");
   renderOfficial();
@@ -217,13 +225,17 @@ function render() {
 function toast(msg) { const el=$("toast"); el.textContent=msg; el.style.display="block"; setTimeout(()=>el.style.display="none", 1600); }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-clone]");
-  if (b) { navigator.clipboard.writeText(b.dataset.clone).then(()=>toast(t().copied)); }
+  if (b) { navigator.clipboard.writeText(b.dataset.clone).then(()=>toast(t().copied)); return; }
+  const inst = e.target.closest("[data-install]");
+  if (inst) { navigator.clipboard.writeText(inst.dataset.install).then(()=>toast(t().copiedInstall)); return; }
+  if (e.target.closest("#btn-search")) { render(); $("list").scrollIntoView({behavior:"smooth", block:"start"}); return; }
   const tab = e.target.closest(".tab");
   if (tab) { scope = tab.dataset.scope; document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x===tab)); render(); }
   const chip = e.target.closest(".chip");
   if (chip) { cat = chip.dataset.cat; render(); }
 });
 $("q").addEventListener("input", render);
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); render(); $("list").scrollIntoView({behavior:"smooth", block:"start"}); } });
 $("btn-zh").addEventListener("click", () => { lang="zh"; localStorage.setItem("dsh-lang", lang); render(); });
 $("btn-en").addEventListener("click", () => { lang="en"; localStorage.setItem("dsh-lang", lang); render(); });
 const PARTS = Array.from({length:26}, (_,i) => "s"+(i+1)+".json");
