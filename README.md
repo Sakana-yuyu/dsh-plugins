@@ -15,7 +15,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/shots/catalog-top.jpg" alt="目录首页：安装条、搜索、推荐" width="900">
+  <a href="https://sakana-yuyu.github.io/dsh-plugins/">
+    <img src="https://v1.screenshot.11ty.dev/https%3A%2F%2Fsakana-yuyu.github.io%2Fdsh-plugins%2F/opengraph/" alt="目录首页：安装条、搜索、推荐" width="900">
+  </a>
 </p>
 
 ## 装进 DSH
@@ -31,11 +33,15 @@ dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"
 搜索、按分类筛选，点卡片看 README，点命令即可复制安装指令。
 
 <p align="center">
-  <img src="docs/shots/catalog-grid.jpg" alt="插件卡片网格" width="900">
+  <img src="https://opengraph.githubassets.com/1/deepseek-ai/deepseek-harness" width="280" alt="deepseek-harness">
+  <img src="https://opengraph.githubassets.com/1/zhu1090093659/dsh-web-ui" width="280" alt="dsh-web-ui">
+  <img src="https://opengraph.githubassets.com/1/nexu-io/open-design" width="280" alt="open-design">
 </p>
 
 <p align="center">
-  <img src="docs/shots/catalog-modal.jpg" alt="点卡片查看 README" width="900">
+  <img src="https://opengraph.githubassets.com/1/titanwings/colleague-skill" width="280" alt="colleague-skill">
+  <img src="https://opengraph.githubassets.com/1/whiteguo233/OpenBiliClaw" width="280" alt="OpenBiliClaw">
+  <img src="https://opengraph.githubassets.com/1/imsai-sh/zhuzhiliao" width="280" alt="zhuzhiliao">
 </p>
 
 ## 装好后
