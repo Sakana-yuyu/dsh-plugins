@@ -127,6 +127,23 @@ const $ = (id) => document.getElementById(id);
 function t() { return I18N[lang]; }
 function esc(s){s=String(s||"");return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function stars(n){n=Number(n)||0;if(n>=10000)return Math.round(n/1000)+"k";if(n>=1000)return (n/1000).toFixed(1)+"k";return String(n);}
+const CATS = {official:{zh:"官方核心",en:"Official core"},ui:{zh:"UI 与皮肤",en:"UI & skins"},vision:{zh:"视觉",en:"Vision"},tui:{zh:"终端 TUI",en:"Terminal TUI"},desktop:{zh:"桌面客户端",en:"Desktop"},browser:{zh:"浏览器",en:"Browser"},workflow:{zh:"工作流与多智能体",en:"Workflow & agents"},tools:{zh:"工具与技能",en:"Tools & skills"},search:{zh:"搜索与研究",en:"Search & research"},dev:{zh:"开发与代码",en:"Dev & code"},awesome:{zh:"目录与精选",en:"Awesome lists"},other:{zh:"其他",en:"Other"}};
+function expand(p) {
+  if (p.full_name && p.name) return p;
+  const cat = p.c || p.category || "other";
+  const labels = CATS[cat] || CATS.other;
+  const full = p.f || p.full_name || "";
+  return {
+    rank: p.r || p.rank, name: p.n || p.name, full_name: full,
+    html_url: p.u || p.html_url || ("https://github.com/" + full),
+    description_zh: p.z || p.description_zh, description_en: p.e || p.description_en,
+    description: p.z || p.e || p.description,
+    stars: p.s || p.stars, language: p.l || p.language,
+    official: !!(p.o || p.official), category: cat,
+    category_zh: p.category_zh || labels.zh, category_en: p.category_en || labels.en,
+    clone_url: p.clone_url || ("https://github.com/" + full + ".git")
+  };
+}
 function desc(p) { return lang === "zh" ? (p.description_zh || p.description) : (p.description_en || p.description); }
 function catLabel(p) { return lang === "zh" ? (p.category_zh || p.category) : (p.category_en || p.category); }
 function applyLang() {
@@ -209,10 +226,11 @@ document.addEventListener("click", (e) => {
 $("q").addEventListener("input", render);
 $("btn-zh").addEventListener("click", () => { lang="zh"; localStorage.setItem("dsh-lang", lang); render(); });
 $("btn-en").addEventListener("click", () => { lang="en"; localStorage.setItem("dsh-lang", lang); render(); });
+const PARTS = Array.from({length:26}, (_,i) => "s"+(i+1)+".json");
 Promise.all([
-  Promise.all([1,2,3,4,5,6,7,8].map(i => fetch("catalog-"+i+".json").then(r => r.ok ? r.json() : []).catch(() => []))).then(parts => {
-    const flat = parts.flat();
-    if (flat.length) return flat;
+  Promise.all(PARTS.map(f => fetch(f).then(r => r.ok ? r.json() : []).catch(() => []))).then(parts => {
+    const flat = parts.flat().map(expand);
+    if (flat.length >= 200) return flat;
     return fetch("catalog.json").then(r => r.json());
   }),
   fetch("official.json").then(r => r.json())
