@@ -290,3 +290,471 @@ window.__ModuleLoader__.load({
         }, "知道了")
       );
     }
+
+    function hideStoreChrome() {
+      if (typeof document === "undefined") return function () {};
+      document.documentElement.setAttribute("data-dsh-plugins-store", "1");
+      var style = document.getElementById("dsh-plugins-store-css");
+      if (!style) {
+        style = document.createElement("style");
+        style.id = "dsh-plugins-store-css";
+        document.head.appendChild(style);
+      }
+      style.textContent = [
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer"]{display:none!important}',
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.bar"]{display:none!important}',
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.footer"]{display:none!important}',
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.input"]{display:none!important}',
+        '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start}',
+        '@media (max-width:1100px){[data-dsh-plugins-grid]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}',
+        '@media (max-width:720px){[data-dsh-plugins-grid]{grid-template-columns:1fr!important}}'
+      ].join("");
+      var extra = [];
+      function hideNode(el) {
+        if (!el || el.getAttribute("data-dsh-plugins-hid")) return;
+        if (el.querySelector && el.querySelector("[data-dsh-plugins-catalog]")) return;
+        el.setAttribute("data-dsh-plugins-hid", "1");
+        el.setAttribute("data-dsh-plugins-disp", el.style.display || "");
+        el.style.display = "none";
+        extra.push(el);
+      }
+      var fields = document.querySelectorAll("textarea, input, [contenteditable='true']");
+      for (var i = 0; i < fields.length; i++) {
+        var el = fields[i];
+        var ph = String(el.getAttribute("placeholder") || el.getAttribute("aria-label") || "");
+        if (!/给智能体发消息|发消息|Send message/i.test(ph)) continue;
+        var node = el;
+        var found = null;
+        for (var k = 0; k < 10 && node && node !== document.body; k++) {
+          var pos = "";
+          try { pos = window.getComputedStyle(node).position; } catch (e) {}
+          if (pos === "fixed" || pos === "absolute" || pos === "sticky") { found = node; break; }
+          node = node.parentElement;
+        }
+        hideNode(found || el.parentElement);
+      }
+      return function () {
+        document.documentElement.removeAttribute("data-dsh-plugins-store");
+        if (style && style.parentNode) style.parentNode.removeChild(style);
+        for (var j = 0; j < extra.length; j++) {
+          var n = extra[j];
+          if (!n) continue;
+          n.style.display = n.getAttribute("data-dsh-plugins-disp") || "";
+          n.removeAttribute("data-dsh-plugins-hid");
+          n.removeAttribute("data-dsh-plugins-disp");
+        }
+      };
+    }
+
+    function ownerOf(full) {
+      var s = String(full || "");
+      var i = s.indexOf("/");
+      return i > 0 ? s.slice(0, i) : "";
+    }
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      return Promise.reject(new Error("no clipboard"));
+    }
+    function excerpt(s, max) {
+      s = String(s || "").replace(/\r\n/g, "\n").trim();
+      max = max || 12000;
+      if (s.length > max) s = s.slice(0, max) + "…";
+      return s;
+    }
+    function coverH(size) {
+      return size === "medium" ? 88 : 112;
+    }
+    function readLocalUi() {
+      try {
+        var raw = localStorage.getItem(LS_KEY);
+        if (!raw) return { showSidebar: true, coverSize: "large" };
+        var o = JSON.parse(raw);
+        return {
+          showSidebar: o.showSidebar !== false,
+          coverSize: o.coverSize === "medium" ? "medium" : "large"
+        };
+      } catch (e) {
+        return { showSidebar: true, coverSize: "large" };
+      }
+    }
+    function writeLocalUi(partial) {
+      var cur = readLocalUi();
+      if (partial.showSidebar !== undefined) cur.showSidebar = !!partial.showSidebar;
+      if (partial.coverSize) cur.coverSize = partial.coverSize === "medium" ? "medium" : "large";
+      try { localStorage.setItem(LS_KEY, JSON.stringify(cur)); } catch (e) {}
+      try { window.dispatchEvent(new CustomEvent(EVT, { detail: cur })); } catch (e) {}
+      return cur;
+    }
+    function chipStyle(on) {
+      return {
+        display: "inline-block",
+        padding: "3px 10px",
+        margin: "0 6px 6px 0",
+        borderRadius: 999,
+        border: "1px solid " + (on ? BRAND : LINE),
+        background: BG,
+        color: on ? BRAND : FG,
+        cursor: "pointer",
+        fontSize: 12,
+        lineHeight: "18px"
+      };
+    }
+    function btnStyle(disabled, primary, danger) {
+      var color = disabled ? MUTED : (danger ? ERR : (primary ? BRAND : FG));
+      var border = (danger && !disabled) ? ERR : (primary && !disabled ? BRAND : LINE);
+      return {
+        padding: "6px 12px",
+        borderRadius: 6,
+        border: "1px solid " + border,
+        background: BG,
+        color: color,
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontSize: 12,
+        lineHeight: "18px"
+      };
+    }
+    function inputStyle() {
+      return {
+        flex: 1,
+        minWidth: 0,
+        padding: "6px 10px",
+        borderRadius: 6,
+        border: "1px solid " + LINE,
+        background: BG,
+        color: FG,
+        fontSize: 13,
+        outline: "none"
+      };
+    }
+    function cmdStyle() {
+      return {
+        display: "block",
+        width: "100%",
+        maxWidth: "100%",
+        marginTop: 8,
+        padding: "4px 0",
+        border: "none",
+        background: "transparent",
+        color: MUTED,
+        fontSize: 11,
+        lineHeight: "16px",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        cursor: "pointer",
+        textAlign: "left",
+        boxSizing: "border-box"
+      };
+    }
+    function matchItem(p, q, scope, cat) {
+      if (scope === "official" && !p.official) return false;
+      if (scope === "community" && p.official) return false;
+      if (cat && cat !== "all" && p.category !== cat) return false;
+      if (!q) return true;
+      var blob = [p.name, p.full_name, p.author, p.description, p.description_zh, p.description_en, p.category_zh, p.category].join(" ").toLowerCase();
+      return blob.indexOf(q) >= 0;
+    }
+    function overlay(node) {
+      if (createPortal && typeof document !== "undefined" && document.body) {
+        return createPortal(node, document.body);
+      }
+      return node;
+    }
+
+    function sectionTitle(text) {
+      return h("div", {
+        style: { fontSize: 13, fontWeight: 600, color: FG, margin: "16px 0 8px" }
+      }, text);
+    }
+
+    function DetailModal(props) {
+      var p = props.p;
+      var detail = props.detail;
+      var onClose = props.onClose;
+      var full = p.full_name || "";
+      var author = p.author || ownerOf(full);
+      var zh = p.description_zh || p.description || "";
+      var en = p.description_en || "";
+      var imgs = (detail && detail.images) || [];
+      if (imgs.length > 16) imgs = imgs.slice(0, 16);
+      var shot = [];
+      for (var ii = 0; ii < imgs.length; ii++) {
+        (function (src, idx) {
+          shot.push(h("a", {
+            key: String(idx) + src,
+            href: src,
+            target: "_blank",
+            rel: "noreferrer",
+            style: { display: "block", flex: "0 0 auto" }
+          }, h("img", {
+            src: src,
+            alt: "",
+            style: {
+              maxHeight: 280,
+              height: 280,
+              width: "auto",
+              maxWidth: "100%",
+              objectFit: "contain",
+              borderRadius: 8,
+              display: "block",
+              background: "rgba(0,0,0,0.04)"
+            }
+          })));
+        })(imgs[ii], ii);
+      }
+      var readmeZh = excerpt((detail && detail.readme_zh) || "", 12000);
+      var readmeEn = excerpt((detail && detail.readme_en) || "", 12000);
+      var readme = readmeZh || readmeEn;
+      var node = h("div", {
+        onClick: onClose,
+        style: {
+          position: "fixed",
+          inset: 0,
+          zIndex: 10000,
+          background: "rgba(0,0,0,0.48)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          boxSizing: "border-box"
+        }
+      },
+        h("div", {
+          onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
+          style: {
+            width: "min(920px, 94vw)",
+            maxHeight: "88vh",
+            overflow: "auto",
+            background: BG,
+            color: FG,
+            borderRadius: 12,
+            border: "1px solid " + LINE,
+            padding: "18px 20px 24px",
+            boxSizing: "border-box"
+          }
+        },
+          h("div", {
+            style: {
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 12,
+              marginBottom: 8
+            }
+          },
+            h("div", { style: { minWidth: 0 } },
+              h("div", { style: { fontSize: 18, fontWeight: 650, color: FG } }, p.name || full),
+              h("div", { style: { color: MUTED, fontSize: 12, marginTop: 4 } },
+                (author ? author + " · " : "") + (p.category_zh || p.category || "") +
+                (full ? " · " + full : "")
+              )
+            ),
+            h("button", { type: "button", onClick: onClose, style: btnStyle(false, false) }, "关闭")
+          ),
+          (detail && detail.loading) ? h("div", { style: { color: MUTED, marginTop: 12 } }, "正在加载效果图和文档…") : null,
+          (detail && detail.error) ? h("div", { style: { color: ERR, marginTop: 12 } }, detail.error) : null,
+          sectionTitle("效果图"),
+          shot.length ? h("div", {
+            style: {
+              display: "flex",
+              flexWrap: "nowrap",
+              gap: 10,
+              overflowX: "auto",
+              paddingBottom: 6
+            }
+          }, shot) : h("div", { style: { color: MUTED, fontSize: 12 } }, "暂无 README 效果图"),
+          sectionTitle("介绍"),
+          zh ? h("div", { style: { color: FG, fontSize: 13, lineHeight: "22px", marginBottom: 8 } }, zh) : null,
+          en ? h("div", { style: { color: MUTED, fontSize: 12, lineHeight: "20px" } }, en) : null,
+          (!zh && !en) ? h("div", { style: { color: MUTED, fontSize: 12 } }, "暂无简介") : null,
+          sectionTitle("文档"),
+          readme ? h("div", {
+            style: {
+              color: FG,
+              fontSize: 12,
+              lineHeight: "20px",
+              whiteSpace: "pre-wrap",
+              overflowWrap: "anywhere"
+            }
+          }, readme) : h("div", { style: { color: MUTED, fontSize: 12 } }, "暂无 README"),
+          full ? h("div", { style: { marginTop: 16 } },
+            h("a", {
+              href: p.url || ("https://github.com/" + full),
+              target: "_blank",
+              rel: "noreferrer",
+              style: { color: BRAND, textDecoration: "none", fontSize: 12 }
+            }, "在 GitHub 打开")
+          ) : null
+        )
+      );
+      return overlay(node);
+    }
+
+    function PluginCard(props) {
+      var p = props.p;
+      var install = props.install;
+      var uninstall = props.uninstall;
+      var waiting = props.waiting;
+      var busyUn = props.busyUn;
+      var installed = !!props.installed;
+      var isSelf = !!props.isSelf;
+      var note = props.note;
+      var hCover = coverH(props.coverSize);
+      var ex = useState(false);
+      var open = ex[0], setOpen = ex[1];
+      var cp = useState(false);
+      var copied = cp[0], setCopied = cp[1];
+      var dt = useState(null);
+      var detail = dt[0], setDetail = dt[1];
+      var full = p.full_name || "";
+      var author = p.author || ownerOf(full);
+      var cmd = p.install || "";
+      var cover = full ? ("https://opengraph.githubassets.com/1/" + full) : "";
+      function onCopy() {
+        if (!cmd) return;
+        copyText(cmd).then(function () {
+          setCopied(true);
+          setTimeout(function () { setCopied(false); }, 1200);
+        }).catch(function () {});
+      }
+      function onOpenDetail() {
+        setOpen(true);
+        if (!detail && full) {
+          setDetail({ loading: true, images: [], readme_zh: "", readme_en: "", error: "" });
+          fetch("/api/dsh-plugins/detail?full_name=" + encodeURIComponent(full))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              var imgs = (data && data.images) || [];
+              if ((!imgs || !imgs.length) && data && data.og) imgs = [data.og];
+              setDetail({
+                loading: false,
+                images: imgs,
+                readme_zh: (data && data.readme_zh) || "",
+                readme_en: (data && data.readme_en) || "",
+                error: data && data.ok === false ? ((data.error || data.message) || "加载失败") : ""
+              });
+            })
+            .catch(function (e) {
+              setDetail({
+                loading: false,
+                images: [],
+                readme_zh: "",
+                readme_en: "",
+                error: String((e && e.message) || e || "加载失败")
+              });
+            });
+        }
+      }
+      var zh = p.description_zh || "";
+      var en = p.description_en || "";
+      return h("div", {
+        onClick: function (e) {
+          var t = e && e.target;
+          if (t && t.closest && t.closest("button, a, input, textarea")) return;
+          onOpenDetail();
+        },
+        style: {
+          border: "1px solid " + LINE,
+          background: BG,
+          borderRadius: 8,
+          padding: 10,
+          overflow: "hidden",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          minWidth: 0,
+          cursor: "pointer"
+        }
+      },
+        cover ? h("img", {
+          src: cover,
+          alt: "",
+          style: {
+            width: "100%",
+            height: hCover,
+            objectFit: "cover",
+            borderRadius: 6,
+            marginBottom: 8,
+            display: "block"
+          }
+        }) : null,
+        h("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+          h("span", { style: { fontWeight: 600, fontSize: 14, color: FG } }, p.name || full),
+          installed ? h("span", {
+            style: {
+              fontSize: 11,
+              padding: "1px 6px",
+              borderRadius: 999,
+              border: "1px solid " + OK,
+              color: OK,
+              background: BG
+            }
+          }, "已安装") : null,
+          p.official ? h("span", {
+            style: {
+              fontSize: 11,
+              padding: "1px 6px",
+              borderRadius: 999,
+              border: "1px solid " + BRAND,
+              color: BRAND,
+              background: BG
+            }
+          }, "官方") : null,
+          h("span", { style: { color: MUTED, fontSize: 12 } }, "stars " + (p.stars || 0))
+        ),
+        h("div", { style: { color: MUTED, fontSize: 12, marginTop: 4 } },
+          (author ? author + " · " : "") + (p.category_zh || p.category || "")
+        ),
+        h("div", {
+          style: {
+            marginTop: 6,
+            color: FG,
+            fontSize: 12,
+            lineHeight: "18px",
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            minHeight: 36
+          }
+        }, p.description || zh || en || ""),
+        cmd ? h("button", {
+          type: "button",
+          title: "点击复制安装命令",
+          onClick: onCopy,
+          style: cmdStyle()
+        }, copied ? "已复制" : cmd) : null,
+        h("div", { style: { marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" } },
+          (!installed) ? h("button", {
+            type: "button",
+            disabled: waiting || !full,
+            onClick: function () { if (install) install(full); },
+            style: btnStyle(waiting || !full, true)
+          }, waiting ? "安装中…" : "安装") : h("button", {
+            type: "button",
+            disabled: busyUn || isSelf || !full,
+            title: isSelf ? "这是插件库本身" : "卸载此插件",
+            onClick: function () { if (uninstall) uninstall(full); },
+            style: btnStyle(busyUn || isSelf || !full, false, !isSelf)
+          }, busyUn ? "卸载中…" : "卸载"),
+          h("button", {
+            type: "button",
+            onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onOpenDetail(); },
+            style: btnStyle(false, false)
+          }, "详情")
+        ),
+        open ? h(DetailModal, {
+          p: p,
+          detail: detail,
+          onClose: function () { setOpen(false); }
+        }) : null,
+        note ? h("div", {
+          style: { marginTop: 8, color: note.ok ? OK : ERR, fontSize: 12 }
+        }, note.text) : null,
+        p.warning ? h("div", {
+          style: { marginTop: 8, color: ERR, fontSize: 12 }
+        }, p.warning) : null
+      );
+    }
