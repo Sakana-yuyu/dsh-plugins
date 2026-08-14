@@ -496,7 +496,7 @@ window.__ModuleLoader__.load({
           }
         },
           h("div", { style: { fontSize: 16, fontWeight: 600, color: FG } }, "插件库"),
-          h("button", { type: "button", onClick: onClose, style: btnStyle(false, false) }, "关闭")
+          onClose ? h("button", { type: "button", onClick: onClose, style: btnStyle(false, false) }, "关闭") : null
         ),
         h("div", {
           style: {
@@ -549,14 +549,73 @@ window.__ModuleLoader__.load({
       );
     }
 
+    function CatalogView() {
+      var coverSize = readLocalUi().coverSize;
+      return h("div", {
+        style: {
+          height: "100%",
+          minHeight: 0,
+          width: "100%"
+        }
+      }, h(CatalogDrawer, { coverSize: coverSize }));
+    }
+
+    function ensureRailHost() {
+      if (typeof document === "undefined") return null;
+      var existing = document.querySelector("[data-dsh-plugins-rail]");
+      var workspaces = document.querySelector('[data-slot="sidebar.workspaces"]');
+      var sidebar = document.querySelector('[data-slot="sidebar"]');
+      if (!existing && !workspaces && !sidebar) return null;
+      var host = existing;
+      if (!host) {
+        host = document.createElement("div");
+        host.setAttribute("data-dsh-plugins-rail", "");
+        host.style.width = "100%";
+        host.style.boxSizing = "border-box";
+        host.style.flexShrink = "0";
+      }
+      if (workspaces && workspaces.parentNode) {
+        if (host.parentNode !== workspaces.parentNode || host.nextSibling !== workspaces) {
+          workspaces.parentNode.insertBefore(host, workspaces);
+        }
+      } else if (sidebar) {
+        if (host.parentNode !== sidebar || sidebar.firstChild !== host) {
+          sidebar.insertBefore(host, sidebar.firstChild);
+        }
+      } else {
+        return existing || null;
+      }
+      return host;
+    }
+
+    function removeRailHost() {
+      if (typeof document === "undefined") return;
+      var existing = document.querySelector("[data-dsh-plugins-rail]");
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    }
+
+    function openCatalogView() {
+      if (typeof document === "undefined") return;
+      var root = document.querySelector('[data-slot="conversation.session.header"]') || document;
+      var buttons = root.querySelectorAll("button");
+      for (var i = 0; i < buttons.length; i++) {
+        var b = buttons[i];
+        if (b.closest && b.closest("[data-dsh-plugins-rail]")) continue;
+        if (String(b.textContent || "").trim() === "插件库") {
+          b.click();
+          return;
+        }
+      }
+    }
+
     function SidebarStore(props) {
       var ui0 = readLocalUi();
       var sh = useState(ui0.showSidebar);
       var show = sh[0], setShow = sh[1];
       var cs = useState(ui0.coverSize);
       var coverSize = cs[0], setCoverSize = cs[1];
-      var op = useState(false);
-      var open = op[0], setOpen = op[1];
+      var hs = useState(null);
+      var host = hs[0], setHost = hs[1];
 
       useEffect(function () {
         var dead = false;
@@ -576,79 +635,68 @@ window.__ModuleLoader__.load({
           var d = (e && e.detail) || readLocalUi();
           setShow(d.showSidebar !== false);
           if (d.coverSize) setCoverSize(d.coverSize);
-          if (d.showSidebar === false) setOpen(false);
         }
         function onStorage(e) {
           if (e.key === LS_KEY) onEvt();
         }
-        function onKey(e) {
-          if (e.key === "Escape") setOpen(false);
-        }
         window.addEventListener(EVT, onEvt);
         window.addEventListener("storage", onStorage);
-        window.addEventListener("keydown", onKey);
         return function () {
           dead = true;
           window.removeEventListener(EVT, onEvt);
           window.removeEventListener("storage", onStorage);
-          window.removeEventListener("keydown", onKey);
         };
       }, []);
 
-      if (show === false) return null;
+      useEffect(function () {
+        if (show === false) {
+          removeRailHost();
+          setHost(null);
+          return;
+        }
+        var start = Date.now();
+        var timer = null;
+        function tick() {
+          var node = ensureRailHost();
+          if (node) {
+            setHost(node);
+            return;
+          }
+          if (Date.now() - start < 10000) {
+            timer = setTimeout(tick, 200);
+          }
+        }
+        tick();
+        return function () {
+          if (timer) clearTimeout(timer);
+        };
+      }, [show]);
+
+      if (show === false) {
+        return null;
+      }
+      if (!host || !createPortal) return null;
 
       var wide = !!(props && props.wide);
       var btn = h("button", {
         type: "button",
-        onClick: function () { setOpen(!open); },
+        onClick: function () { openCatalogView(); },
         style: {
           width: "100%",
-          padding: wide ? "6px 10px" : "6px 4px",
-          borderRadius: 6,
+          padding: "7px 10px",
+          borderRadius: 8,
           border: "1px solid " + LINE,
           background: BG,
           color: FG,
           cursor: "pointer",
           fontSize: wide ? 13 : 12,
-          lineHeight: "18px"
+          lineHeight: "18px",
+          boxSizing: "border-box",
+          textAlign: "left"
         }
       }, wide ? "插件库" : "库");
 
-      var drawer = open ? overlay(h("div", { key: "dsh-plugins-drawer" },
-        h("div", {
-          onClick: function () { setOpen(false); },
-          style: {
-            position: "fixed",
-            left: 0,
-            top: 0,
-            right: 0,
-            bottom: 0,
-            background: "color-mix(in srgb, var(--dsw-alias-label-primary) 28%, transparent)",
-            zIndex: 12000
-          }
-        }),
-        h("div", {
-          style: {
-            position: "fixed",
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: "min(520px, 92vw)",
-            zIndex: 12001,
-            background: BG,
-            color: FG,
-            borderRight: "1px solid " + LINE,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden"
-          }
-        }, h(CatalogDrawer, {
-          coverSize: coverSize,
-          onClose: function () { setOpen(false); }
-        }))
-      )) : null;
-
-      return h("div", { style: { width: "100%" } }, btn, drawer);
+      return createPortal(btn, host);
     }
 
     function SettingsManage() {
@@ -819,6 +867,13 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
+      ctx.slots.inject("conversation.view", () => ctx.slots.register({
+        name: "conversation.view",
+        id: "dsh-plugins",
+        order: 20,
+        label: () => "插件库",
+        inject: () => ({}),
+      }, CatalogView));
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action",
         id: "dsh-plugins-catalog",
