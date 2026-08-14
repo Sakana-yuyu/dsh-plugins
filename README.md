@@ -6,12 +6,14 @@
 
 <p align="center">
   按 GitHub stars 排名的 DeepSeek Harness 插件<br>
-  由 <a href="https://github.com/Sakana-yuyu">R Sakana</a> 维护 🐟
+  由 <a href="https://github.com/Sakana-yuyu">R Sakana</a> 维护 🐟<br>
+  也在 <a href="https://linux.do">LINUX DO</a> 聊聊
 </p>
 
 <p align="center">
   <a href="https://sakana-yuyu.github.io/dsh-plugins/">在线目录</a> ·
-  <a href="https://github.com/topics/dsh-plugin">topic: dsh-plugin</a>
+  <a href="https://github.com/topics/dsh-plugin">topic: dsh-plugin</a> ·
+  <a href="https://linux.do">LINUX DO</a>
 </p>
 
 <p align="center">
@@ -54,7 +56,7 @@ GitHub topic `dsh-plugin` + 官方仓库，工作日自动刷新。分类：官�
 
 ## English
 
-Star-ranked DeepSeek Harness plugin catalog, maintained by [R Sakana](https://github.com/Sakana-yuyu). Live: https://sakana-yuyu.github.io/dsh-plugins/
+Star-ranked DeepSeek Harness plugin catalog, maintained by [R Sakana](https://github.com/Sakana-yuyu). Live: https://sakana-yuyu.github.io/dsh-plugins/ · Also on [LINUX DO](https://linux.do).
 
 ```sh
 dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"
