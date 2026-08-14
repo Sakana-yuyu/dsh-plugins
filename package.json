@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugins-catalog",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Star-ranked DeepSeek Harness plugin catalog. Search and install other dsh-plugin repos.",
   "type": "module",
   "main": "index.js",

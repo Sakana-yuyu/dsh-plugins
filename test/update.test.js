@@ -1,7 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import {
   cmpSemver,
   extractShaFromLock,
@@ -25,8 +24,9 @@ test('extractShaFromLock reads first github tarball sha', () => {
 })
 
 test('selfPackageVersion returns package.json version', () => {
-  const pkg = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'))
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.equal(selfPackageVersion(), pkg.version)
+  assert.match(pkg.version, /^\d+\.\d+\.\d+/)
 })
 
 test('decideNewer version first, sha second; empty lastSelfSha is not current', () => {
