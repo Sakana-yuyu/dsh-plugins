@@ -14,6 +14,10 @@
   <a href="https://github.com/topics/dsh-plugin">topic: dsh-plugin</a>
 </p>
 
+<p align="center">
+  <img src="docs/shots/catalog-top.jpg" alt="目录首页：安装条、搜索、推荐" width="900">
+</p>
+
 ## 装进 DSH
 
 ```sh
@@ -24,9 +28,15 @@ dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"
 
 ## 网页能做什么
 
-- 搜索、按分类筛选
-- 点卡片看 README
-- 点命令即可复制安装指令
+搜索、按分类筛选，点卡片看 README，点命令即可复制安装指令。
+
+<p align="center">
+  <img src="docs/shots/catalog-grid.jpg" alt="插件卡片网格" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/shots/catalog-modal.jpg" alt="点卡片查看 README" width="900">
+</p>
 
 ## 装好后
 
