@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSH 插件目录</title>
+  <meta name="description" content="DeepSeek Harness 插件目录：按 stars 排名的官方与社区插件。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+:root{--bg:#061014;--bg-2:#0a181d;--card:#0d1f26;--line:rgba(80,220,200,.14);--ink:#e7f6f2;--muted:#8aa8a3;--teal:#2ee6c8;--teal-2:#7af0d8;--amber:#f0c36a;--shadow:0 18px 40px rgba(0,0,0,.35)}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:"Noto Sans SC","Sora",sans-serif;color:var(--ink);background:radial-gradient(1200px 600px at 10% -10%,rgba(46,230,200,.12),transparent 50%),linear-gradient(180deg,#071318 0%,var(--bg) 40%,#050d10 100%);min-height:100vh}
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:28px 20px 80px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+.brand{display:flex;gap:14px;align-items:center}
+.mark{width:46px;height:46px;border:1px solid var(--teal);border-radius:12px;display:grid;place-items:center;color:var(--teal);font-family:"IBM Plex Mono",monospace;font-weight:600;box-shadow:inset 0 0 18px rgba(46,230,200,.18)}
+h1{margin:0;font-family:Sora,"Noto Sans SC",sans-serif;font-size:34px;letter-spacing:-.03em}
+.sub{color:var(--muted);margin:6px 0 0;font-size:14px}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.lang button,.chip,button.tab{background:transparent;color:var(--ink);border:0;padding:8px 14px;cursor:pointer;font:inherit}
+.lang button.on,.chip.on,button.tab.on{background:rgba(46,230,200,.16);color:var(--teal-2)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0 16px}
+input[type=search]{flex:1;min-width:220px;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 14px;font:inherit}
+.tabs,.cats{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);border-radius:999px;background:rgba(13,31,38,.8)}
+.meta{color:var(--muted);font-size:13px;margin:0 0 18px}
+h2.sec{font-family:Sora,"Noto Sans SC",sans-serif;font-size:20px;margin:28px 0 12px;display:flex;align-items:baseline;gap:10px}
+h2.sec span{color:var(--muted);font-size:13px;font-weight:400}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+.feat{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.card{background:linear-gradient(180deg,rgba(18,42,48,.92),var(--card));border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:100%}
+.cover{position:relative;aspect-ratio:16/8;background:#0b171c;overflow:hidden}
+.cover img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(1.05) contrast(1.05)}
+.rank{position:absolute;left:10px;top:10px;font-family:"IBM Plex Mono",monospace;background:rgba(6,16,20,.78);color:var(--teal);border:1px solid rgba(46,230,200,.35);border-radius:8px;padding:3px 8px;font-size:12px}
+.body{padding:14px 14px 16px;display:flex;flex-direction:column;gap:8px;flex:1}
+.name{font-family:Sora,"Noto Sans SC",sans-serif;font-weight:600;font-size:16px;line-height:1.3;word-break:break-all}
+.name a{color:inherit;text-decoration:none}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.badge{font-size:11px;border-radius:999px;padding:3px 8px;border:1px solid var(--line);color:var(--muted)}
+.badge.off{color:#061014;background:var(--teal);border-color:transparent;font-weight:700}
+.stars{font-family:"IBM Plex Mono",monospace;color:var(--amber);font-size:12px}
+.desc{color:#c7ddd8;font-size:13px;line-height:1.55;min-height:3.1em}
+.acts{display:flex;gap:8px;margin-top:auto}
+.acts button,.acts a{flex:1;text-align:center;text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:8px 10px;color:var(--teal-2);background:rgba(46,230,200,.06);font-size:13px;cursor:pointer}
+.official-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.off-mini{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:12px;background:rgba(13,31,38,.85);text-decoration:none;color:inherit}
+.off-mini img{width:64px;height:36px;object-fit:cover;border-radius:6px}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+code,pre{font-family:"IBM Plex Mono",monospace;background:rgba(46,230,200,.08);padding:2px 6px;border-radius:6px}
+.toast{position:fixed;bottom:18px;right:18px;background:#12343a;color:var(--teal-2);border:1px solid var(--teal);padding:10px 14px;border-radius:10px;display:none;z-index:5}
+@media(max-width:640px){h1{font-size:26px}.feat{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark">dsh</div>
+      <div>
+        <h1 id="title">DSH 插件目录</h1>
+        <p class="sub" id="subtitle">按 GitHub stars 排名的 DeepSeek Harness 插件，来自 topic:dsh-plugin</p>
+      </div>
+    </div>
+    <div class="lang" role="group" aria-label="language">
+      <button id="btn-zh" class="on" type="button">中文</button>
+      <button id="btn-en" type="button">EN</button>
+    </div>
+  </header>
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="搜索插件、作者、描述…">
+    <div class="tabs">
+      <button class="tab on" data-scope="all" type="button">全部</button>
+      <button class="tab" data-scope="official" type="button">官方</button>
+      <button class="tab" data-scope="community" type="button">社区</button>
+    </div>
+  </div>
+  <div class="cats" id="cats"></div>
+  <p class="meta" id="stats"></p>
+  <h2 class="sec" id="rec-title">推荐 <span id="rec-sub">按 stars 的前 10</span></h2>
+  <div class="grid feat" id="featured"></div>
+  <h2 class="sec" id="off-title">官方推荐 <span id="off-sub">deepseek-ai 核心与 in-tree 包</span></h2>
+  <div class="official-strip" id="official-row"></div>
+  <h2 class="sec" id="all-title">全部插件 <span id="all-sub">按 stars 降序</span></h2>
+  <div class="grid" id="list"></div>
+  <footer>
+    <p id="foot-clone">克隆本目录：<code>git clone https://github.com/Sakana-yuyu/dsh-plugins.git</code></p>
+    <p id="foot-install">安装插件：<code>dsh plugin --profile web add "github:owner/repo"</code></p>
+    <p><a href="https://github.com/topics/dsh-plugin" id="foot-topic">GitHub topic: dsh-plugin</a> · <a href="https://github.com/Sakana-yuyu/dsh-plugins">仓库</a> · <a href="https://deepseek.com/harness">DeepSeek Harness</a></p>
+  </footer>
+</div>
+<div class="toast" id="toast">已复制</div>
+<script>
+const I18N = {
+  zh: {
+    title: "DSH 插件目录",
+    subtitle: "按 GitHub stars 排名的 DeepSeek Harness 插件，来自 topic:dsh-plugin",
+    search: "搜索插件、作者、描述…",
+    all: "全部", official: "官方", community: "社区",
+    rec: "推荐", recSub: "按 stars 的前 10",
+    off: "官方推荐", offSub: "deepseek-ai 核心与 in-tree 包",
+    allTitle: "全部插件", allSub: "按 stars 降序",
+    stats: (n,u) => `共 ${n} 个插件 · 更新于 ${u}`,
+    clone: "克隆", copied: "已复制克隆地址", github: "GitHub",
+    catAll: "全部分类"
+  },
+  en: {
+    title: "DSH Plugin Catalog",
+    subtitle: "DeepSeek Harness plugins from topic:dsh-plugin, ranked by GitHub stars",
+    search: "Search plugins, authors, descriptions…",
+    all: "All", official: "Official", community: "Community",
+    rec: "Featured", recSub: "Top 10 by stars",
+    off: "Official picks", offSub: "deepseek-ai core and in-tree packages",
+    allTitle: "All plugins", allSub: "Sorted by stars",
+    stats: (n,u) => `${n} plugins · updated ${u}`,
+    clone: "Clone", copied: "Clone URL copied", github: "GitHub",
+    catAll: "All categories"
+  }
+};
+let lang = localStorage.getItem("dsh-lang") || "zh";
+let scope = "all";
+let cat = "all";
+let catalog = [];
+let official = null;
+const $ = (id) => document.getElementById(id);
+function t() { return I18N[lang]; }
+function esc(s){s=String(s||"");return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function stars(n){n=Number(n)||0;if(n>=10000)return Math.round(n/1000)+"k";if(n>=1000)return (n/1000).toFixed(1)+"k";return String(n);}
+function desc(p) { return lang === "zh" ? (p.description_zh || p.description) : (p.description_en || p.description); }
+function catLabel(p) { return lang === "zh" ? (p.category_zh || p.category) : (p.category_en || p.category); }
+function applyLang() {
+  const i = t();
+  $("title").textContent = i.title;
+  $("subtitle").textContent = i.subtitle;
+  $("q").placeholder = i.search;
+  document.querySelectorAll(".tab").forEach(b => { b.textContent = i[b.dataset.scope]; });
+  $("rec-title").firstChild.textContent = i.rec + " ";
+  $("rec-sub").textContent = i.recSub;
+  $("off-title").firstChild.textContent = i.off + " ";
+  $("off-sub").textContent = i.offSub;
+  $("all-title").firstChild.textContent = i.allTitle + " ";
+  $("all-sub").textContent = i.allSub;
+  $("btn-zh").classList.toggle("on", lang==="zh");
+  $("btn-en").classList.toggle("on", lang==="en");
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+}
+function card(p, large) {
+  const i = t();
+  const img = p.image || ("https://opengraph.githubassets.com/1/" + p.full_name);
+  const off = p.official ? `<span class="badge off">${lang==="zh"?"官方":"Official"}</span>` : "";
+  return `<article class="card">
+    <div class="cover"><span class="rank">#${p.rank||""}</span><img alt="" src="${esc(img)}" loading="lazy"></div>
+    <div class="body">
+      <div class="name"><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${esc(p.name)}</a></div>
+      <div class="row"><span class="stars">★ ${stars(p.stars)}</span>${off}<span class="badge">${esc(catLabel(p))}</span><span class="badge">${esc(p.language||"—")}</span></div>
+      <div class="desc">${esc(desc(p))}</div>
+      <div class="acts"><button type="button" data-clone="${esc(p.clone_url)}">${i.clone}</button><a href="${esc(p.html_url)}" target="_blank" rel="noopener">${i.github}</a></div>
+    </div></article>`;
+}
+function filtered() {
+  const q = ($("q").value || "").trim().toLowerCase();
+  return catalog.filter(p => {
+    if (scope === "official" && !p.official) return false;
+    if (scope === "community" && p.official) return false;
+    if (cat !== "all" && p.category !== cat) return false;
+    if (!q) return true;
+    const blob = [p.name,p.full_name,p.description,p.description_zh,p.description_en,(p.topics||[]).join(" ")].join(" ").toLowerCase();
+    return blob.includes(q);
+  });
+}
+function renderCats() {
+  const i = t();
+  const seen = [];
+  catalog.forEach(p => { if (!seen.find(x => x.id===p.category)) seen.push({id:p.category, zh:p.category_zh, en:p.category_en}); });
+  const order = ["official","ui","vision","tui","desktop","browser","workflow","tools","search","dev","awesome","other"];
+  seen.sort((a,b) => order.indexOf(a.id) - order.indexOf(b.id));
+  $("cats").innerHTML = [`<button class="chip ${cat==="all"?"on":""}" data-cat="all">${i.catAll}</button>`].concat(seen.map(c => `<button class="chip ${cat===c.id?"on":""}" data-cat="${c.id}">${lang==="zh"?c.zh:c.en}</button>`)).join("");
+}
+function renderOfficial() {
+  if (!official) return;
+  const items = [official.core].concat(official.bundles || []).concat((official.groups || []).slice(0, 8));
+  $("official-row").innerHTML = items.map(p => {
+    const d = lang==="zh" ? (p.description_zh||"") : (p.description_en||"");
+    const img = p.image || "https://opengraph.githubassets.com/1/deepseek-ai/deepseek-harness";
+    return `<a class="off-mini" href="${esc(p.html_url)}" target="_blank" rel="noopener"><img src="${esc(img)}" alt=""><div><strong>${esc(p.name)}</strong><div class="sub">${esc(d)}</div></div></a>`;
+  }).join("");
+}
+function render() {
+  applyLang();
+  renderCats();
+  const rows = filtered();
+  const latest = catalog[0] && catalog[0].updated_at ? catalog[0].updated_at.replace("T"," ").replace("Z"," UTC") : "";
+  $("stats").textContent = t().stats(rows.length, latest);
+  const top = catalog.slice(0, 10);
+  $("featured").innerHTML = top.map(p => card(p, true)).join("");
+  $("list").innerHTML = rows.map(p => card(p, false)).join("");
+  renderOfficial();
+}
+function toast(msg) { const el=$("toast"); el.textContent=msg; el.style.display="block"; setTimeout(()=>el.style.display="none", 1600); }
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-clone]");
+  if (b) { navigator.clipboard.writeText(b.dataset.clone).then(()=>toast(t().copied)); }
+  const tab = e.target.closest(".tab");
+  if (tab) { scope = tab.dataset.scope; document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x===tab)); render(); }
+  const chip = e.target.closest(".chip");
+  if (chip) { cat = chip.dataset.cat; render(); }
+});
+$("q").addEventListener("input", render);
+$("btn-zh").addEventListener("click", () => { lang="zh"; localStorage.setItem("dsh-lang", lang); render(); });
+$("btn-en").addEventListener("click", () => { lang="en"; localStorage.setItem("dsh-lang", lang); render(); });
+Promise.all([
+  fetch("catalog.json").then(r => r.json()),
+  fetch("official.json").then(r => r.json())
+]).then(([c, o]) => { catalog = c; official = o; render(); })
+.catch(err => { $("stats").textContent = String(err); });
+</script>
+</body>
+</html>
