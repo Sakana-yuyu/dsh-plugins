@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="112" fill="#2563eb"/>
+  <text x="256" y="318" text-anchor="middle" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="210" font-weight="750" fill="#fff" letter-spacing="-8">dsh</text>
+  <path d="M392 348c8 0 14 6 14 14v8c0 10-8 18-18 18h-10c-6 0-10-4-10-10v-6c0-14 10-24 24-24z" fill="#2563eb"/>
+  <path d="M378 360c0-8 6-14 14-14 10 0 18 8 18 18v6c0 4-3 8-8 8h-8c-9 0-16-8-16-18z" fill="#fff"/>
+</svg>

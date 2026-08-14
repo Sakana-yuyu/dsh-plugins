@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.png" width="96" alt="DSH 插件目录">
+  <img src="docs/logo.svg" width="96" alt="DSH 插件目录">
 </p>
 
 <h1 align="center">DSH 插件目录</h1>
