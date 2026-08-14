@@ -4,8 +4,17 @@
   "description": "Star-ranked DeepSeek Harness plugin catalog. Search and install other dsh-plugin repos.",
   "type": "module",
   "main": "index.js",
-  "files": ["index.js", "cordis.patch.yml", "skills"],
-  "keywords": ["dsh", "dsh-plugin", "deepseek-harness"],
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "skills"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,6 +23,19 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
     }
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
   }
 }

@@ -11,6 +11,8 @@
 dsh plugin --profile web add "github:Sakana-yuyu/dsh-plugins"
 ```
 
+安装并重启 `dsh web` 后，打开设置页的「插件库」：搜索、点「安装」即可把目录里的插件装进当前 profile，不用在对话里口述。
+
 装好后可以对 DSH 说「帮我找视觉插件」或「安装 liustack/modlens」。插件会搜索本目录，并执行：
 
 ```sh

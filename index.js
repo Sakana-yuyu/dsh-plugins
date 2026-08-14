@@ -1,5 +1,5 @@
 export const name = 'dsh-plugins-catalog'
-export const inject = ['tools']
+export const inject = ['tools', 'webServer']
 
 const CATALOG_BASE = 'https://sakana-yuyu.github.io/dsh-plugins'
 const CATS = {
@@ -85,6 +85,48 @@ function row(p) {
   }
 }
 
+function apiRow(p) {
+  const r = row(p)
+  const full = r.full_name || ''
+  const slash = full.indexOf('/')
+  return {
+    rank: r.rank,
+    name: r.name,
+    full_name: full,
+    author: slash > 0 ? full.slice(0, slash) : '',
+    stars: r.stars,
+    official: r.official,
+    category: p.category,
+    category_zh: p.category_zh || r.category,
+    description: r.description,
+    description_zh: p.description_zh || '',
+    description_en: p.description_en || '',
+    install: r.install,
+    url: r.url,
+  }
+}
+
+function validFullName(full) {
+  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(full)
+}
+
+function safeProfile(value) {
+  return String(value || 'web').replace(/[^A-Za-z0-9_-]/g, '') || 'web'
+}
+
+async function spawnDshAdd(full, profile) {
+  const { spawn } = await import('node:child_process')
+  return new Promise((resolve) => {
+    const child = spawn('dsh', ['plugin', '--profile', profile, 'add', 'github:' + full], { stdio: ['ignore', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (d) => { stdout += d })
+    child.stderr.on('data', (d) => { stderr += d })
+    child.on('error', (err) => resolve({ code: 127, stdout, stderr: String(err) }))
+    child.on('close', (code) => resolve({ code, stdout, stderr }))
+  })
+}
+
 async function registerWithDefineTool(ctx) {
   const { defineTool } = await import('@deepseek-ai/dsh-tools')
   ctx.tools.register(defineTool({
@@ -147,10 +189,135 @@ async function registerWithDefineTool(ctx) {
   }))
 }
 
+async function installPlugin(full, profile) {
+  const command = installCmd(full, profile)
+  const result = await spawnDshAdd(full, profile)
+  let stdout = result.stdout || ''
+  let stderr = result.stderr || ''
+  let ok = result.code === 0
+  if (!ok) {
+    const cp = await import("node:child_process")
+    const os = await import("node:os")
+    const path = await import("node:path")
+    const home = process.env.DSH_HOME || path.join(os.homedir(), ".dsh")
+    const cwd = path.join(home, "profiles", profile)
+    const extra = cp.spawnSync("pnpm", ["add", "github:" + full], { cwd: cwd, encoding: "utf8", timeout: 180000 })
+    stdout += extra.stdout || ""
+    stderr += (extra.stderr || "") + (extra.error ? String(extra.error) : "")
+    ok = extra.status === 0
+  }
+  return {
+    ok,
+    needsRestart: true,
+    message: ok ? 'installed' : ((stderr || '').slice(-500) || 'install failed'),
+    command,
+    stdout: stdout.slice(-4000),
+    stderr: stderr.slice(-4000),
+  }
+}
+
+function sendJson(res, status, obj) {
+  const body = JSON.stringify(obj)
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': Buffer.byteLength(body),
+  })
+  res.end(body)
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    let n = 0
+    req.on('data', (c) => {
+      n += c.length
+      if (n > 1000000) {
+        req.destroy()
+        reject(new Error('body too large'))
+        return
+      }
+      chunks.push(c)
+    })
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('error', reject)
+  })
+}
+
+async function handleHttp(req, res) {
+  let path = '/'
+  try {
+    path = new URL(req.url || '/', 'http://127.0.0.1').pathname
+  } catch {
+    path = '/'
+  }
+  if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1)
+  const method = (req.method || 'GET').toUpperCase()
+
+  if (method === 'GET' && path === '/api/dsh-plugins/catalog') {
+    try {
+      const items = await loadCatalog()
+      const plugins = items.slice(0, 400).map(apiRow)
+      sendJson(res, 200, { ok: true, plugins })
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: String(err && err.message || err) })
+    }
+    return
+  }
+
+  if (method === 'POST' && path === '/api/dsh-plugins/install') {
+    let body
+    try {
+      body = JSON.parse((await readBody(req)) || '{}')
+    } catch {
+      sendJson(res, 400, { ok: false, error: 'invalid json' })
+      return
+    }
+    const full = String((body && body.full_name) || '').trim()
+    if (!validFullName(full)) {
+      sendJson(res, 400, { ok: false, error: 'full_name must look like owner/repo' })
+      return
+    }
+    const profile = safeProfile(body && body.profile)
+    try {
+      const result = await installPlugin(full, profile)
+      sendJson(res, result.ok ? 200 : 500, result)
+    } catch (err) {
+      sendJson(res, 500, {
+        ok: false,
+        needsRestart: true,
+        message: String(err && err.message || err),
+        command: installCmd(full, profile),
+        stdout: '',
+        stderr: String(err && err.message || err),
+      })
+    }
+    return
+  }
+
+  sendJson(res, 404, { ok: false, error: 'not found' })
+}
+
+function registerHttp(ctx) {
+  if (!ctx.webServer) return
+  const route = {
+    kind: 'prefix',
+    path: '/api/dsh-plugins',
+    handler: handleHttp,
+  }
+  if (ctx.effect) ctx.effect(() => ctx.webServer.register(route))
+  else ctx.webServer.register(route)
+}
+
+
 export async function apply(ctx) {
   try {
     await registerWithDefineTool(ctx)
   } catch (err) {
     if (ctx.logger && ctx.logger.warn) ctx.logger.warn('[dsh-plugins-catalog] ' + err)
+  }
+  try {
+    registerHttp(ctx)
+  } catch (err) {
+    if (ctx.logger && ctx.logger.warn) ctx.logger.warn('[dsh-plugins-catalog] http ' + err)
   }
 }
