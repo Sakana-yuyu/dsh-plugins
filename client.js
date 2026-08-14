@@ -48,6 +48,11 @@ window.__ModuleLoader__.load({
       }
       return Promise.reject(new Error("no clipboard"));
     }
+    function excerpt(s) {
+      s = String(s || "").replace(/\r\n/g, "\n").trim();
+      if (s.length > 800) s = s.slice(0, 800) + "…";
+      return s;
+    }
     function wrapStyle() {
       return {
         padding: "8px 4px 16px",
@@ -138,9 +143,12 @@ window.__ModuleLoader__.load({
       var open = ex[0], setOpen = ex[1];
       var cp = useState(false);
       var copied = cp[0], setCopied = cp[1];
+      var dt = useState(null);
+      var detail = dt[0], setDetail = dt[1];
       var full = p.full_name || "";
       var author = p.author || ownerOf(full);
       var cmd = p.install || "";
+      var cover = full ? ("https://opengraph.githubassets.com/1/" + full) : "";
       function onCopy() {
         if (!cmd) return;
         copyText(cmd).then(function () {
@@ -148,8 +156,62 @@ window.__ModuleLoader__.load({
           setTimeout(function () { setCopied(false); }, 1200);
         }).catch(function () {});
       }
+      function onToggleDetail() {
+        var next = !open;
+        setOpen(next);
+        if (next && !detail && full) {
+          setDetail({ loading: true, images: [], readme_zh: "", readme_en: "", error: "" });
+          fetch("/api/dsh-plugins/detail?full_name=" + encodeURIComponent(full))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              var imgs = (data && data.images) || [];
+              if ((!imgs || !imgs.length) && data && data.og) imgs = [data.og];
+              setDetail({
+                loading: false,
+                images: imgs,
+                readme_zh: (data && data.readme_zh) || "",
+                readme_en: (data && data.readme_en) || "",
+                error: data && data.ok === false ? ((data.error || data.message) || "加载失败") : ""
+              });
+            })
+            .catch(function (e) {
+              setDetail({
+                loading: false,
+                images: [],
+                readme_zh: "",
+                readme_en: "",
+                error: String((e && e.message) || e || "加载失败")
+              });
+            });
+        }
+      }
       var zh = p.description_zh || "";
       var en = p.description_en || "";
+      var imgs = (detail && detail.images) || [];
+      if (imgs.length > 8) imgs = imgs.slice(0, 8);
+      var shot = [];
+      for (var ii = 0; ii < imgs.length; ii++) {
+        (function (src, idx) {
+          shot.push(h("a", {
+            key: String(idx) + src,
+            href: src,
+            target: "_blank",
+            rel: "noreferrer",
+            style: { display: "block", maxWidth: "100%" }
+          }, h("img", {
+            src: src,
+            alt: "",
+            style: {
+              maxWidth: "100%",
+              maxHeight: 180,
+              objectFit: "cover",
+              borderRadius: 8,
+              display: "block"
+            }
+          })));
+        })(imgs[ii], ii);
+      }
+      var readmeText = excerpt((detail && (detail.readme_zh || detail.readme_en)) || "");
       return h("div", {
         style: {
           border: "1px solid " + LINE,
@@ -162,6 +224,18 @@ window.__ModuleLoader__.load({
           boxSizing: "border-box"
         }
       },
+        cover ? h("img", {
+          src: cover,
+          alt: "",
+          style: {
+            width: "100%",
+            height: 88,
+            objectFit: "cover",
+            borderRadius: 6,
+            marginBottom: 8,
+            display: "block"
+          }
+        }) : null,
         h("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
           h("span", { style: { fontWeight: 600, fontSize: 14, color: FG } }, p.name || full),
           p.official ? h("span", {
@@ -193,15 +267,28 @@ window.__ModuleLoader__.load({
             onClick: function () { install(full); },
             style: btnStyle(waiting || !full, true)
           }, waiting ? "安装中…" : "安装"),
-          (zh || en) ? h("button", {
+          h("button", {
             type: "button",
-            onClick: function () { setOpen(!open); },
+            onClick: onToggleDetail,
             style: btnStyle(false, false)
-          }, open ? "收起" : "详情") : null
+          }, open ? "收起" : "详情")
         ),
         open ? h("div", { style: { marginTop: 8, color: MUTED, fontSize: 12, overflowX: "hidden" } },
-          zh ? h("div", { style: { marginBottom: 4 } }, "中文：" + zh) : null,
-          en ? h("div", null, "EN: " + en) : null
+          (detail && detail.loading) ? h("div", { style: { marginBottom: 8 } }, "正在加载 README…") : null,
+          (detail && detail.error) ? h("div", { style: { color: ERR, marginBottom: 8 } }, detail.error) : null,
+          shot.length ? h("div", {
+            style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }
+          }, shot) : null,
+          zh ? h("div", { style: { marginBottom: 4, color: FG } }, "中文：" + zh) : null,
+          en ? h("div", { style: { marginBottom: 4, color: FG } }, "EN: " + en) : null,
+          readmeText ? h("div", {
+            style: {
+              color: MUTED,
+              whiteSpace: "pre-wrap",
+              overflow: "hidden",
+              marginTop: 6
+            }
+          }, readmeText) : null
         ) : null,
         note ? h("div", {
           style: { marginTop: 8, color: note.ok ? OK : ERR, fontSize: 12 }
@@ -281,8 +368,8 @@ window.__ModuleLoader__.load({
           .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
           .then(function (data) {
             var text;
-            if (data && data.ok && data.needsRestart) text = "已安装，请重启 dsh web";
-            else if (data && data.ok) text = data.message || "已安装";
+            if (data && data.ok && data.launched) text = data.message || "已打开 PowerShell 安装窗口，完成后请重启 DSH";
+            else if (data && data.ok) text = data.message || (data.needsRestart ? "已安装，请重启 dsh web" : "已安装");
             else text = (data && (data.message || data.error || data.stderr)) || "安装失败";
             setNotes(function (m) {
               var n = {};
