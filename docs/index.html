@@ -210,7 +210,7 @@ $("q").addEventListener("input", render);
 $("btn-zh").addEventListener("click", () => { lang="zh"; localStorage.setItem("dsh-lang", lang); render(); });
 $("btn-en").addEventListener("click", () => { lang="en"; localStorage.setItem("dsh-lang", lang); render(); });
 Promise.all([
-  fetch("catalog.json").then(r => r.json()),
+  Promise.all([1,2,3,4].map(i => fetch("catalog-"+i+".json").then(r => r.json()))).then(parts => parts.flat()),
   fetch("official.json").then(r => r.json())
 ]).then(([c, o]) => { catalog = c; official = o; render(); })
 .catch(err => { $("stats").textContent = String(err); });
