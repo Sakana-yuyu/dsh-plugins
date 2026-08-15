@@ -62,6 +62,8 @@
       var scope = sc[0], setScope = sc[1];
       var ct = useState("all");
       var cat = ct[0], setCat = ct[1];
+      var sd = useState("stars-desc");
+      var sort = sd[0], setSort = sd[1];
       var bz = useState({});
       var busy = bz[0], setBusy = bz[1];
       var ms = useState({});
