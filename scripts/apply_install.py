@@ -31,7 +31,7 @@ def compact(row):
 def add_short_keys(o, row):
     kind = row.get("in" + "stall")
     tag = "n" + "pm"
-    if kind == tag:
+    if kind == tag or kind == "link":
         o["im"] = kind
     extra = row.get(tag + "_name")
     if extra:
@@ -47,12 +47,18 @@ def write_shards(rows):
         path.write_text(json.dumps(part, ensure_ascii=False) + chr(10), encoding="utf-8")
     return n
 
-def _kind_of(ov, parsed):
+def _kind_of(ov, parsed, existing=""):
     if isinstance(ov, dict):
         k = ov.get("in"+"stall")
-        if k in ("n"+"pm", "github"):
+        if k in ("n"+"pm", "github", "link"):
             return k, str(ov.get("n"+"pm_name") or "").strip()
-    return parsed.get("in"+"stall") or "github", parsed.get("n"+"pm_name") or ""
+    parsed_kind = parsed.get("in"+"stall") or ""
+    parsed_name = parsed.get("n"+"pm_name") or ""
+    if parsed_kind == "n"+"pm":
+        return parsed_kind, parsed_name
+    if existing == "link" or parsed_kind == "link":
+        return "link", ""
+    return "github", parsed_name
 
 def apply_rows(rows, overrides):
     import sys
@@ -66,7 +72,7 @@ def apply_rows(rows, overrides):
         full = row.get("full_name") or ""
         ov = overrides.get(full) if isinstance(overrides, dict) else None
         parsed = parse_readme_install(row.get("readme") or "")
-        kind, name = _kind_of(ov, parsed)
+        kind, name = _kind_of(ov, parsed, row.get(key_a) or "")
         row[key_a] = kind
         row[key_b] = name
         if kind == tag:

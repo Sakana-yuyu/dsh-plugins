@@ -23,6 +23,9 @@
     "install": "npm",
     "npm_name": "@anionex/dsh-computer-use"
   },
+  "AdamPlatin123/awesome-dsh-plugins": {
+    "install": "link"
+  },
   "omdsh-dev/dsh-data-agent": {
     "install": "npm",
     "npm_name": "@yejiming/dsh-data-agent"

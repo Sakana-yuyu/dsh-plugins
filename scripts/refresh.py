@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json, os, sys, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
+from radar_merge import is_index_repo
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 API = "https://api.github.com/search/repositories"
@@ -184,26 +185,35 @@ def github_get(url, token):
     }
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(url, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        if e.code in (403, 429):
-            reset = e.headers.get("X-RateLimit-Reset")
-            wait = 70
-            if reset:
-                try:
-                    wait = max(8, int(reset) - int(time.time()) + 2)
-                except ValueError:
-                    pass
-            print(f"rate limited ({e.code}), sleeping {wait}s", file=sys.stderr)
-            time.sleep(min(wait, 95))
+    last_err = None
+    for attempt in range(4):
+        req = urllib.request.Request(url, headers=headers)
+        try:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 return json.loads(resp.read().decode("utf-8"))
-        print(body, file=sys.stderr)
-        raise
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            if e.code in (403, 429):
+                reset = e.headers.get("X-RateLimit-Reset")
+                wait = 70
+                if reset:
+                    try:
+                        wait = max(8, int(reset) - int(time.time()) + 2)
+                    except ValueError:
+                        pass
+                print(f"rate limited ({e.code}), sleeping {wait}s", file=sys.stderr)
+                time.sleep(min(wait, 95))
+                continue
+            print(body, file=sys.stderr)
+            raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
+            last_err = e
+            wait = 2 * (attempt + 1)
+            print(f"github GET retry {attempt + 1}/4 after {e}; sleep {wait}s", file=sys.stderr)
+            time.sleep(wait)
+    if last_err:
+        raise last_err
+    raise RuntimeError("github GET failed")
 
 def fetch_all(token):
     items, seen = [], set()
@@ -260,6 +270,8 @@ def to_plugin(it, rank, translations, paths=None):
         "updated_at": it.get("updated_at") or "",
         "default_branch": it.get("default_branch") or "main",
     }
+    if is_index_repo(rec):
+        rec["install"] = "link"
     if paths:
         sub = str(paths.get(full) or "").strip().strip("/")
         if sub and ".." not in sub:
@@ -272,10 +284,18 @@ def main():
     translations = load_translations()
     paths = load_paths()
     raw = fetch_all(token)
+    try:
+        from radar_merge import fetch_radar_items, merge_github_items
+        radar = fetch_radar_items(token)
+        print("radar", len(radar), file=sys.stderr)
+        raw = merge_github_items(raw, radar)
+    except Exception as err:
+        print("radar fetch failed:", err, file=sys.stderr)
     plugins = [to_plugin(it, i + 1, translations, paths) for i, it in enumerate(raw)]
+    from radar_merge import probe_installable_rows
+    plugins = probe_installable_rows(plugins)
     (DOCS / "catalog.json").write_text(json.dumps(plugins, ensure_ascii=False, indent=2) + chr(10), encoding="utf-8")
     print("wrote", len(plugins), "plugins")
-    import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from apply_install import main as apply_main
     apply_main()

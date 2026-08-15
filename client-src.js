@@ -949,7 +949,8 @@ window.__ModuleLoader__.load({
       var full = p.full_name || "";
       var id = p.npm_name || p.name || full;
       var author = p.author || ownerOf(full);
-      var cmd = p.install || "";
+      var cmd = (p.install_method === "link" || p.install === "link") ? "" : (p.install || "");
+      var linkOnly = p.install_method === "link" || p.install === "link" || /(^|\/)awesome-dsh-plugins$/i.test(full);
       var cover = full ? ("https://opengraph.githubassets.com/1/" + full) : "";
       function onCopy() {
         if (!cmd) return;
@@ -1069,6 +1070,7 @@ window.__ModuleLoader__.load({
           "当前 " + (p.current || "-") + (p.latest ? " → 最新 " + p.latest : "")
         ) : null,
         (p.install_method === "npm" || p.npm_name) ? h("div", { style: { color: MUTED, fontSize: 11, marginTop: 2 } }, "请用 npm 包名安装，不要用 github:") : null,
+        linkOnly ? h("div", { style: { color: MUTED, fontSize: 11, marginTop: 2 } }, "这是目录索引，不能当插件安装") : null,
         p.status === "error" ? h("div", { style: { color: MUTED, fontSize: 11, marginTop: 2 } }, "检查失败") : null,
         h("div", {
           style: {
@@ -1091,7 +1093,7 @@ window.__ModuleLoader__.load({
           style: Object.assign({}, cmdStyle(), { visibility: cmd ? "visible" : "hidden" })
         }, copied ? "已复制" : (cmd || " ")),
         h("div", { style: { marginTop: "auto", paddingTop: 10, display: "flex", gap: 8, flexWrap: "wrap" } },
-          (!installed) ? h("button", {
+          (!installed && !linkOnly) ? h("button", {
             type: "button",
             disabled: waiting || !id,
             onClick: function () { if (install) install(id, p); },

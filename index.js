@@ -217,10 +217,27 @@ function applyPathOverride(item, overrides) {
 
 function rowPkg(p) {
   if (!p) return ''
+  if (isLinkInstall(p)) return ''
   const name = String((p.npm_name || p.npm || '')).trim()
   if (!name) return ''
   const m = p.install || p.im || p.install_method || ''
   return m === 'npm' ? name : ''
+}
+
+function isIndexRepo(p) {
+  const full = String((p && p.full_name) || '')
+  const name = String((p && p.name) || '').toLowerCase()
+  const repo = (full.split('/')[1] || '').toLowerCase()
+  if (repo === 'awesome-dsh-plugins') return true
+  if (name.startsWith('awesome-') && (name.includes('dsh') || name.includes('plugin') || name.includes('harness'))) return true
+  const desc = String((p && (p.description || p.description_zh || p.description_en)) || '')
+  if (desc.includes('雷达') || desc.includes('索引仓库')) return true
+  return false
+}
+
+function isLinkInstall(p) {
+  const m = String((p && (p.install_method || p.install || p.im)) || '')
+  return m === 'link' || m === 'none' || isIndexRepo(p)
 }
 
 function installCmd(fullName, profile, path, pkgName) {
@@ -309,7 +326,12 @@ function row(p) {
   }
   if (p.path) out.path = p.path
   const pkg = rowPkg(p)
-  if (pkg) {
+  if (isLinkInstall(p)) {
+    out.install = ''
+    out.spec = ''
+    out.install_method = 'link'
+    out.npm_name = ''
+  } else if (pkg) {
     out.install_method = 'n'+'pm'
     out.npm_name = pkg
   } else {
@@ -1293,7 +1315,10 @@ async function registerWithDefineTool(ctx) {
       let previewPath = ''
       try {
         const items = await loadCatalog()
-        const hit = items.find(x => x.full_name === full) || findCatalogHit(items, { full_name: full, name: specIn })
+        const hit = items.find(x => x.full_name === full)
+        if (hit && isLinkInstall(hit)) {
+          return { ok: false, error: '这是目录索引，不能当插件安装' }
+        }
         if (hit && hit.path) previewPath = hit.path
       } catch {}
       const cmd = installCmd(full, profile, previewPath)
@@ -1548,7 +1573,7 @@ async function handleHttp(req, res) {
       const installedRows = collectInstalledGithub(items)
       const installedSet = new Set(installedRows.map(x => x.full_name).filter(Boolean))
       const installedNames = new Set(installedRows.map(x => x.name).filter(Boolean))
-      const plugins = items.slice(0, 400).map(p => {
+      const plugins = items.map(p => {
         const r = apiRow(p)
         r.installed = installedSet.has(r.full_name) || installedNames.has(r.name) || !!(r.npm_name && installedNames.has(r.npm_name))
         return r
@@ -1675,6 +1700,14 @@ async function handleHttp(req, res) {
     try {
       const items = await loadCatalog()
       const hit = items.find(x => x.full_name === full) || findCatalogHit(items, { full_name: full, name: specIn })
+      if (hit && isLinkInstall(hit)) {
+        sendJson(res, 400, {
+          ok: false,
+          needsRestart: false,
+          message: '这是目录索引，不能当插件安装。请打开 GitHub 仓库查看其中的插件。',
+        })
+        return
+      }
       if (hit && hit.path && !sub) sub = hit.path
       if (hit) pkg = rowPkg(hit)
     } catch {}
@@ -1853,6 +1886,8 @@ export {
   classifySpec,
   fetchRemoteNpm,
   rowPkg,
+  isLinkInstall,
+  row,
 }
 
 export async function apply(ctx) {

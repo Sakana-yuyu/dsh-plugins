@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths:
       - scripts/refresh.py
+      - scripts/radar_merge.py
+      - scripts/apply_install.py
       - .github/workflows/refresh.yml
 jobs:
   refresh:

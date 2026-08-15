@@ -10,6 +10,8 @@ import {
   installCmd,
   applyPathOverride,
   PLACEHOLDER_WARN,
+  isLinkInstall,
+  row,
 } from '../index.js'
 
 const FULL = 'Small-tailqwq/dsh-deep-whale'
@@ -96,4 +98,40 @@ test('isPlaceholderPkg({_pnpmPlaceholder:true}) is true', () => {
 test('PLACEHOLDER_WARN is exported', () => {
   assert.equal(typeof PLACEHOLDER_WARN, 'string')
   assert.ok(PLACEHOLDER_WARN.length > 0)
+})
+
+test('expand compact im link keeps install link', () => {
+  const compact = expand({
+    n: 'awesome-dsh-plugins',
+    f: 'AdamPlatin123/awesome-dsh-plugins',
+    c: 'awesome',
+    im: 'link',
+  })
+  assert.equal(compact.install, 'link')
+  assert.equal(isLinkInstall(compact), true)
+})
+
+test('row omits install command for link catalogs', () => {
+  const r = row({
+    name: 'awesome-dsh-plugins',
+    full_name: 'AdamPlatin123/awesome-dsh-plugins',
+    category: 'awesome',
+    category_zh: '目录与精选',
+    install: 'link',
+    html_url: 'https://github.com/AdamPlatin123/awesome-dsh-plugins',
+  })
+  assert.equal(r.install_method, 'link')
+  assert.equal(r.install, '')
+  assert.equal(r.spec, '')
+})
+
+test('row treats radar awesome lists as link even without install field', () => {
+  const r = row({
+    name: 'awesome-dsh-plugins',
+    full_name: 'AdamPlatin123/awesome-dsh-plugins',
+    category: 'awesome',
+    html_url: 'https://github.com/AdamPlatin123/awesome-dsh-plugins',
+  })
+  assert.equal(r.install_method, 'link')
+  assert.equal(r.install, '')
 })
