@@ -5,7 +5,8 @@
         '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}',
         '[data-dsh-plugins-grid]>*{min-width:0}',
         '.dsh-plugins-sidebar-btn:hover{background:rgba(0,0,0,0.06)}',
-        '.dsh-plugins-sidebar-btn:active{background:rgba(0,0,0,0.1)}'
+        '.dsh-plugins-sidebar-btn:active{background:rgba(0,0,0,0.1)}',
+        '[class*="footerActions"]{flex-direction:column!important}'
       ].join("");
       document.head.appendChild(style);
     }
