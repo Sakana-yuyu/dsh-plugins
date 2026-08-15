@@ -162,6 +162,19 @@
             view === "discover" ? chips : null
           ),
           view === "discover" ? h("div", { style: { marginBottom: 10 } }, catChips) : null,
+          view === "discover" ? h("div", { style: { marginBottom: 10, display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" } },
+            h("span", { style: { color: MUTED, fontSize: 12, marginRight: 6 } }, "排序"),
+            h("button", {
+              type: "button",
+              onClick: function () { setSort("stars-desc"); setPage(1); },
+              style: chipStyle(sort === "stars-desc")
+            }, "按星 ↓"),
+            h("button", {
+              type: "button",
+              onClick: function () { setSort("stars-asc"); setPage(1); },
+              style: chipStyle(sort === "stars-asc")
+            }, "按星 ↑")
+          ) : null,
           (view === "discover" && loading) ? h("div", { style: { color: MUTED } }, "加载目录中…") : null,
           (view === "discover" && error) ? h("div", { style: { color: ERR, marginBottom: 8 } }, error) : null,
           (view === "installed" || (!loading && !error)) ? h("div", {

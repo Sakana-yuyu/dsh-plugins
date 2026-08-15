@@ -461,7 +461,8 @@ window.__ModuleLoader__.load({
         '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}',
         '[data-dsh-plugins-grid]>*{min-width:0}',
         '.dsh-plugins-sidebar-btn:hover{background:rgba(0,0,0,0.06)}',
-        '.dsh-plugins-sidebar-btn:active{background:rgba(0,0,0,0.1)}'
+        '.dsh-plugins-sidebar-btn:active{background:rgba(0,0,0,0.1)}',
+        '[class*="footerActions"]{flex-direction:column!important}'
       ].join("");
       document.head.appendChild(style);
     }
@@ -1164,6 +1165,8 @@ window.__ModuleLoader__.load({
       var scope = sc[0], setScope = sc[1];
       var ct = useState("all");
       var cat = ct[0], setCat = ct[1];
+      var sd = useState("stars-desc");
+      var sort = sd[0], setSort = sd[1];
       var bz = useState({});
       var busy = bz[0], setBusy = bz[1];
       var ms = useState({});
@@ -1489,6 +1492,17 @@ window.__ModuleLoader__.load({
           if (matchItem(plugins[i], query, scope, cat)) matched.push(plugins[i]);
         }
       }
+      if (view !== "installed") {
+        var sortAsc = sort === "stars-asc";
+        matched.sort(function (a, b) {
+          var sa = Number(a && a.stars) || 0;
+          var sb = Number(b && b.stars) || 0;
+          if (sa !== sb) return sortAsc ? (sa - sb) : (sb - sa);
+          var ra = Number(a && a.rank) || 0;
+          var rb = Number(b && b.rank) || 0;
+          return ra - rb;
+        });
+      }
       var pageSize = 12;
       var pages = Math.max(1, Math.ceil(matched.length / pageSize) || 1);
       var cur = page;
@@ -1705,6 +1719,19 @@ window.__ModuleLoader__.load({
             view === "discover" ? chips : null
           ),
           view === "discover" ? h("div", { style: { marginBottom: 10 } }, catChips) : null,
+          view === "discover" ? h("div", { style: { marginBottom: 10, display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" } },
+            h("span", { style: { color: MUTED, fontSize: 12, marginRight: 6 } }, "排序"),
+            h("button", {
+              type: "button",
+              onClick: function () { setSort("stars-desc"); setPage(1); },
+              style: chipStyle(sort === "stars-desc")
+            }, "按星 ↓"),
+            h("button", {
+              type: "button",
+              onClick: function () { setSort("stars-asc"); setPage(1); },
+              style: chipStyle(sort === "stars-asc")
+            }, "按星 ↑")
+          ) : null,
           (view === "discover" && loading) ? h("div", { style: { color: MUTED } }, "加载目录中…") : null,
           (view === "discover" && error) ? h("div", { style: { color: ERR, marginBottom: 8 } }, error) : null,
           (view === "installed" || (!loading && !error)) ? h("div", {
@@ -1909,8 +1936,7 @@ window.__ModuleLoader__.load({
           overflow: "hidden",
           boxSizing: "border-box",
           textAlign: "left",
-          fontFamily: "inherit",
-          flexShrink: 0
+          fontFamily: "inherit"
         }
       },
         h(PluginIcon),

@@ -169,6 +169,17 @@
           if (matchItem(plugins[i], query, scope, cat)) matched.push(plugins[i]);
         }
       }
+      if (view !== "installed") {
+        var sortAsc = sort === "stars-asc";
+        matched.sort(function (a, b) {
+          var sa = Number(a && a.stars) || 0;
+          var sb = Number(b && b.stars) || 0;
+          if (sa !== sb) return sortAsc ? (sa - sb) : (sb - sa);
+          var ra = Number(a && a.rank) || 0;
+          var rb = Number(b && b.rank) || 0;
+          return ra - rb;
+        });
+      }
       var pageSize = 12;
       var pages = Math.max(1, Math.ceil(matched.length / pageSize) || 1);
       var cur = page;

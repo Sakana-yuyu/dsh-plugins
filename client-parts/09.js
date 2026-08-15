@@ -163,8 +163,7 @@
           overflow: "hidden",
           boxSizing: "border-box",
           textAlign: "left",
-          fontFamily: "inherit",
-          flexShrink: 0
+          fontFamily: "inherit"
         }
       },
         h(PluginIcon),
