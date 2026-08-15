@@ -1,3 +1,137 @@
+            waiting: !!busy[id] || !!busy[full],
+            busyUn: !!busyUn[id] || !!busyUn[full],
+            busyUp: !!busyUp[id] || !!busyUp[full],
+            hasUpdate: !!(cardItem.newer || (row && row.newer)),
+            onUpdate: updateOne,
+            installed: !!(row || item.installed),
+            isSelf: !!(row && row.self) || full === SELF_FULL,
+            note: notes[full],
+            coverSize: coverSize
+          }));
+        })(shown[j]);
+      }
+
+      return h("div", {
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          width: "100%",
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          alignSelf: "stretch",
+          color: FG,
+          fontSize: 13,
+          lineHeight: "20px",
+          boxSizing: "border-box"
+        }
+      },
+        h("div", {
+          style: {
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 20px",
+            borderBottom: "1px solid " + LINE,
+            flexShrink: 0
+          }
+        },
+          h("div", {
+            style: {
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10
+            }
+          },
+            h("div", { style: { display: "flex", alignItems: "center", gap: 10, minWidth: 0, flexWrap: "wrap" } },
+              h("div", { style: { fontSize: 16, fontWeight: 600, color: FG } }, "插件库"),
+              h("button", {
+                type: "button",
+                onClick: function () { setView("installed"); setPage(1); },
+                style: {
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  border: "1px solid " + (view === "installed" ? BRAND : LINE),
+                  background: BG,
+                  color: view === "installed" ? BRAND : FG,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 650,
+                  lineHeight: "18px"
+                }
+              }, "已安装 " + installed.length + (newerCount ? " · " + newerCount + " 个可更新" : ""))
+            ),
+            onClose ? h("button", { type: "button", onClick: onClose, style: btnStyle(false, false) }, "关闭") : null
+          )
+        ),
+        h("div", {
+          ref: listRef,
+          style: {
+            flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            padding: "12px 20px 20px",
+            width: "100%",
+            boxSizing: "border-box"
+          }
+        },
+          h(RestartBanner, {
+            show: restartNeeded,
+            onDismiss: function () {
+              writeRestartNeeded(false);
+              setRestartNeeded(false);
+            }
+          }),
+          (function () {
+            var broken = installed.filter(function (x) { return x && x.warning; });
+            if (!broken.length) return null;
+            return h("div", {
+              style: {
+                marginBottom: 10,
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid " + ERR,
+                color: ERR,
+                fontSize: 12,
+                lineHeight: "18px"
+              }
+            }, broken.length + " 个无法加载，请联系对应插件作者");
+          })(),
+          h(UpdateBanner, {
+            info: updateInfo,
+            busy: updating,
+            note: updateNote,
+            onRetry: function () { refreshUpdates(); },
+            onUpdate: function () {
+              if (updating) return;
+              setUpdating(true);
+              setUpdateNote(null);
+              runUpdate("self", function (err, data) {
+                setUpdating(false);
+                if (err) {
+                  setUpdateNote({ ok: false, text: String((err && err.message) || err || "更新失败") });
+                  return;
+                }
+                if (data && data.ok) {
+                  setUpdateNote(null);
+                  setUpdateInfo(function (cur) { return cur ? Object.assign({}, cur, { newer: false }) : cur; });
+                  afterUpdateOk();
+                } else {
+                  setUpdateNote({ ok: false, text: (data && (data.message || data.error)) || "更新失败" });
+                }
+              });
+            }
+          }),
+          h(RestartModal, {
+            show: showRestartModal,
             onLater: function () { setShowRestartModal(false); },
             onRestart: function () { setShowRestartModal(false); restartNow(); }
           }),
@@ -53,126 +187,17 @@
             ),
             matched.length > 0 ? h(Pager, { cur: cur, pages: pages, setPage: setPage }) : null
           ) : null,
-          (view === "installed" || !loading) ? h("div", { "data-dsh-plugins-grid": "" }, cards) : null,
+          (view === "installed" || !loading) ? h("div", {
+            "data-dsh-plugins-grid": "",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: 12,
+              alignItems: "stretch"
+            }
+          }, cards) : null,
           ((view === "installed" || (!loading && !error)) && matched.length === 0) ? h("div", { style: { color: MUTED } },
             view === "installed"
               ? (installed.length === 0
                 ? "还没有从目录安装过插件。去「发现」里点安装。"
                 : "没有匹配的已安装插件")
-              : "没有匹配的插件"
-          ) : null,
-          ((view === "installed" || (!loading && !error)) && matched.length > 0) ? h("div", { style: { marginTop: 14 } },
-            h(Pager, { cur: cur, pages: pages, setPage: setPage })
-          ) : null
-        )
-      );
-    }
-
-    function CatalogView() {
-      var coverSize = readLocalUi().coverSize;
-      useEffect(function () {
-        return hideStoreChrome();
-      }, []);
-      return h("div", {
-        "data-dsh-plugins-catalog": "",
-        style: {
-          height: "100%",
-          minHeight: 0,
-          width: "100%"
-        }
-      }, h(CatalogDrawer, { coverSize: coverSize }));
-    }
-
-    function ensureRailHost() {
-      if (typeof document === "undefined") return null;
-      var existing = document.querySelector("[data-dsh-plugins-rail]");
-      var workspaces = document.querySelector('[data-slot="sidebar.workspaces"]');
-      var sidebar = document.querySelector('[data-slot="sidebar"]');
-      if (!existing && !workspaces && !sidebar) return null;
-      var host = existing;
-      if (!host) {
-        host = document.createElement("div");
-        host.setAttribute("data-dsh-plugins-rail", "");
-        host.style.width = "100%";
-        host.style.boxSizing = "border-box";
-        host.style.flexShrink = "0";
-        host.style.position = "relative";
-        host.style.zIndex = "8";
-        host.style.pointerEvents = "auto";
-      }
-      if (workspaces && workspaces.parentNode) {
-        if (host.parentNode !== workspaces.parentNode || host.nextSibling !== workspaces) {
-          workspaces.parentNode.insertBefore(host, workspaces);
-        }
-      } else if (sidebar) {
-        if (host.parentNode !== sidebar || sidebar.firstChild !== host) {
-          sidebar.insertBefore(host, sidebar.firstChild);
-        }
-      } else {
-        return existing || null;
-      }
-      return host;
-    }
-
-    function removeRailHost() {
-      if (typeof document === "undefined") return;
-      var existing = document.querySelector("[data-dsh-plugins-rail]");
-      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-    }
-
-    function openCatalogView() {
-      if (typeof document === "undefined") return false;
-      var header = document.querySelector('[data-slot="conversation.session.header"]');
-      var roots = [];
-      if (header) roots.push(header);
-      roots.push(document);
-      for (var r = 0; r < roots.length; r++) {
-        var nodes = roots[r].querySelectorAll('button, [role="tab"], a, [data-slot]');
-        for (var i = 0; i < nodes.length; i++) {
-          var b = nodes[i];
-          if (b.closest && b.closest("[data-dsh-plugins-rail]")) continue;
-          if (b.closest && b.closest('[data-slot="settings.section"]')) continue;
-          if (b.closest && b.closest('[data-slot="sidebar.footer.action"]')) continue;
-          var label = String(b.textContent || b.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
-          if (label === "插件" || label === "插件库") {
-            try { b.click(); return true; } catch (e) {}
-          }
-        }
-      }
-      return false;
-    }
-
-    function SidebarStore(props) {
-      var ui0 = readLocalUi();
-      var sh = useState(ui0.showSidebar);
-      var show = sh[0], setShow = sh[1];
-      var cs = useState(ui0.coverSize);
-      var coverSize = cs[0], setCoverSize = cs[1];
-      var hs = useState(null);
-      var host = hs[0], setHost = hs[1];
-      var nw = useState(false);
-      var hasUpdate = nw[0], setHasUpdate = nw[1];
-
-      useEffect(function () {
-        function onUp(e) {
-          var d = (e && e.detail) || {};
-          setHasUpdate(!!d.newer || (d.newerCount > 0));
-        }
-        window.addEventListener(UPD_EVT, onUp);
-        fetchUpdateInfo(function (err, info) {
-          if (info) setHasUpdate(!!info.newer || (info.newerCount > 0));
-        });
-        return function () { window.removeEventListener(UPD_EVT, onUp); };
-      }, []);
-
-      useEffect(function () {
-        var dead = false;
-        fetch("/api/dsh-plugins/prefs")
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (dead || !data || !data.ok || !data.prefs) return;
-            var p = data.prefs;
-            var nextShow = p.showSidebar !== false;
-            var nextCover = p.coverSize === "medium" ? "medium" : "large";
-            setShow(nextShow);
-            setCoverSize(nextCover);

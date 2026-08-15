@@ -47,6 +47,52 @@ window.__ModuleLoader__.load({
     var SELF_FULL = "Sakana-yuyu/dsh-plugins";
     var SITE = "https://sakana-yuyu.github.io/dsh-plugins/";
 
+    // Shared open-state for the full-screen plugin store panel. The sidebar
+    // "插件" button toggles it; the shell.overlay occupant renders the panel
+    // while open. The panel is fully self-contained (does not depend on
+    // activating a conversation.view tab, which the desktop shell would not
+    // reliably switch to from a sidebar action).
+    var storeOpen = false;
+    var storeListeners = [];
+    function setStoreOpen(v) {
+      v = !!v;
+      if (v === storeOpen) return;
+      storeOpen = v;
+      for (var k = 0; k < storeListeners.length; k++) {
+        try { storeListeners[k](v); } catch (e) {}
+      }
+    }
+    function subscribeStoreOpen(fn) {
+      storeListeners.push(fn);
+      return function () {
+        var i = storeListeners.indexOf(fn);
+        if (i >= 0) storeListeners.splice(i, 1);
+      };
+    }
+
+    // Error boundary: if the catalog UI throws during render, show the error
+    // instead of letting the slot abdicate (which blanks the view silently).
+    var CatalogErrorBoundary = (function () {
+      function CB(props) {
+        React.Component.call(this, props);
+        this.state = { err: null };
+      }
+      CB.prototype = Object.create(React.Component.prototype);
+      CB.prototype.constructor = CB;
+      CB.prototype.componentDidCatch = function (err) {
+        this.setState({ err: String((err && err.message) || err) });
+      };
+      CB.prototype.render = function () {
+        if (this.state.err) {
+          return h("div", {
+            style: { color: "#dc2626", padding: 16, fontSize: 13, lineHeight: "20px" }
+          }, "插件库渲染出错：" + this.state.err);
+        }
+        return this.props.children;
+      };
+      return CB;
+    })();
+
     function PluginIcon() {
       return h("svg", {
         width: 18,
@@ -357,7 +403,7 @@ window.__ModuleLoader__.load({
         style: {
           position: "fixed",
           inset: 0,
-          zIndex: 10000,
+          zIndex: 10001,
           background: "rgba(0,0,0,0.48)",
           display: "flex",
           alignItems: "center",
@@ -398,6 +444,28 @@ window.__ModuleLoader__.load({
       return overlay(node);
     }
 
+    // Two-column card grid. Injected once at apply time so both the overlay
+    // store page and the conversation.view tab get the layout.
+    function injectGridCss() {
+      if (typeof document === "undefined") return;
+      var id = "dsh-plugins-grid-css";
+      if (document.getElementById(id)) return;
+      var style = document.createElement("style");
+      style.id = id;
+      style.textContent = [
+        // Equal-size card grid: auto-fill creates as many 300px columns as the
+        // container width allows and every column shares the remaining width
+        // equally, so ALL cards are the same size (no stretched last row).
+        // Maximizing the window adds columns instead of widening cards.
+        '[data-dsh-plugins-catalog]{width:100%;max-width:none;flex:1 1 auto;min-width:0;align-self:stretch;box-sizing:border-box}',
+        '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}',
+        '[data-dsh-plugins-grid]>*{min-width:0}',
+        '.dsh-plugins-sidebar-btn:hover{background:rgba(0,0,0,0.06)}',
+        '.dsh-plugins-sidebar-btn:active{background:rgba(0,0,0,0.1)}'
+      ].join("");
+      document.head.appendChild(style);
+    }
+
     function hideStoreChrome() {
       if (typeof document === "undefined") return function () {};
       document.documentElement.setAttribute("data-dsh-plugins-store", "1");
@@ -412,9 +480,8 @@ window.__ModuleLoader__.load({
         'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.bar"]{display:none!important}',
         'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.footer"]{display:none!important}',
         'html[data-dsh-plugins-store="1"] [data-slot="conversation.input"]{display:none!important}',
-        '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}[data-dsh-plugins-grid]>*{height:100%;min-width:0}',
-        '@media (max-width:1100px){[data-dsh-plugins-grid]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}',
-        '@media (max-width:720px){[data-dsh-plugins-grid]{grid-template-columns:1fr!important}}'
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.view"]{width:100%!important;max-width:none!important;flex:1 1 auto!important;min-width:0!important}',
+        'html[data-dsh-plugins-store="1"] *:has([data-dsh-plugins-catalog]){max-width:none!important}'
       ].join("");
       var extra = [];
       function hideNode(el) {
@@ -609,9 +676,10 @@ window.__ModuleLoader__.load({
       return blob.indexOf(q) >= 0;
     }
     function overlay(node) {
-      if (createPortal && typeof document !== "undefined" && document.body) {
-        return createPortal(node, document.body);
-      }
+      // Render in place instead of portaling to document.body: the store page
+      // is a full-screen fixed layer, and a body-portaled modal with the same
+      // z-index can be covered by it in the desktop shell. Rendering the modal
+      // inside the tree keeps it above the page it belongs to.
       return node;
     }
 
@@ -633,30 +701,16 @@ window.__ModuleLoader__.load({
       var en = p.description_en || "";
       var imgs = (detail && detail.images) || [];
       if (imgs.length > 16) imgs = imgs.slice(0, 16);
-      var shot = [];
-      for (var ii = 0; ii < imgs.length; ii++) {
-        (function (src, idx) {
-          shot.push(h("a", {
-            key: String(idx) + src,
-            href: src,
-            target: "_blank",
-            rel: "noreferrer",
-            style: { display: "block", flex: "0 0 auto" }
-          }, h("img", {
-            src: src,
-            alt: "",
-            style: {
-              width: "100%",
-              height: "auto",
-              maxHeight: "70vh",
-              objectFit: "contain",
-              objectPosition: "center top",
-              borderRadius: 8,
-              display: "block",
-              background: "rgba(0,0,0,0.04)"
-            }
-          })));
-        })(imgs[ii], ii);
+      var ci = useState(0);
+      var curIdx = ci[0], setCurIdx = ci[1];
+      var safeIdx = imgs.length ? (curIdx % imgs.length) : 0;
+      function prevImg() {
+        if (!imgs.length) return;
+        setCurIdx((safeIdx + imgs.length - 1) % imgs.length);
+      }
+      function nextImg() {
+        if (!imgs.length) return;
+        setCurIdx((safeIdx + 1) % imgs.length);
       }
       var readmeZh = excerpt((detail && detail.readme_zh) || "", 12000);
       var readmeEn = excerpt((detail && detail.readme_en) || "", 12000);
@@ -666,7 +720,7 @@ window.__ModuleLoader__.load({
         style: {
           position: "fixed",
           inset: 0,
-          zIndex: 10000,
+          zIndex: 10001,
           background: "rgba(0,0,0,0.48)",
           display: "flex",
           alignItems: "center",
@@ -678,8 +732,11 @@ window.__ModuleLoader__.load({
         h("div", {
           onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
           style: {
-            width: "min(920px, 94vw)",
-            maxHeight: "88vh",
+            // Adaptive full-size: follows the viewport (94vw / up to 92vh),
+            // grows with a large window, stays compact on a small one.
+            width: "min(1200px, 94vw)",
+            maxHeight: "92vh",
+            minHeight: "60vh",
             overflow: "auto",
             background: "#ffffff",
             color: "#111827",
@@ -696,7 +753,8 @@ window.__ModuleLoader__.load({
               alignItems: "flex-start",
               justifyContent: "space-between",
               gap: 12,
-              marginBottom: 8
+              marginBottom: 8,
+              paddingRight: 40
             }
           },
             h("div", { style: { minWidth: 0 } },
@@ -705,21 +763,117 @@ window.__ModuleLoader__.load({
                 (author ? author + " · " : "") + (p.category_zh || p.category || "") +
                 (full ? " · " + full : "")
               )
-            ),
-            h("button", { type: "button", onClick: onClose, style: btnStyle(false, false) }, "关闭")
+            )
           ),
           (detail && detail.loading) ? h("div", { style: { color: MUTED, marginTop: 12 } }, "正在加载效果图和文档…") : null,
           (detail && detail.error) ? h("div", { style: { color: ERR, marginTop: 12 } }, detail.error) : null,
           sectionTitle("效果图"),
-          shot.length ? h("div", {
+          imgs.length ? h("div", {
             style: {
+              position: "relative",
+              height: 340,
+              borderRadius: 8,
+              overflow: "hidden",
+              background: "rgba(0,0,0,0.04)",
               display: "flex",
-              flexWrap: "nowrap",
-              gap: 10,
-              overflowX: "auto",
-              paddingBottom: 6
+              alignItems: "center",
+              justifyContent: "center"
             }
-          }, shot) : h("div", { style: { color: MUTED, fontSize: 12 } }, "暂无 README 效果图"),
+          },
+            h("a", {
+              href: imgs[safeIdx],
+              target: "_blank",
+              rel: "noreferrer",
+              style: { display: "block", width: "100%", height: "100%", textAlign: "center" }
+            },
+              h("img", {
+                src: imgs[safeIdx],
+                alt: "",
+                style: {
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  width: "auto",
+                  height: "auto",
+                  objectFit: "contain",
+                  display: "inline-block",
+                  verticalAlign: "middle"
+                }
+              })
+            ),
+            imgs.length > 1 ? h("button", {
+              type: "button",
+              title: "上一张",
+              onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); prevImg(); },
+              style: {
+                position: "absolute",
+                left: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: "rgba(0,0,0,0.35)",
+                color: "#ffffff",
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                fontSize: 20,
+                lineHeight: "30px",
+                cursor: "pointer",
+                padding: 0,
+                textAlign: "center"
+              }
+            }, "‹") : null,
+            imgs.length > 1 ? h("button", {
+              type: "button",
+              title: "下一张",
+              onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); nextImg(); },
+              style: {
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: "rgba(0,0,0,0.35)",
+                color: "#ffffff",
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                fontSize: 20,
+                lineHeight: "30px",
+                cursor: "pointer",
+                padding: 0,
+                textAlign: "center"
+              }
+            }, "›") : null,
+            imgs.length > 1 ? h("div", {
+              style: {
+                position: "absolute",
+                bottom: 8,
+                left: 0,
+                right: 0,
+                display: "flex",
+                justifyContent: "center",
+                gap: 6
+              }
+            },
+              imgs.map(function (_, i) {
+                return h("button", {
+                  key: i,
+                  type: "button",
+                  title: "第 " + (i + 1) + " 张",
+                  onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); setCurIdx(i); },
+                  style: {
+                    width: 8,
+                    height: 8,
+                    borderRadius: 999,
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    background: i === safeIdx ? BRAND : "rgba(0,0,0,0.25)"
+                  }
+                })
+              })
+            ) : null
+          ) : h("div", { style: { color: MUTED, fontSize: 12 } }, "暂无 README 效果图"),
           sectionTitle("介绍"),
           zh ? h("div", { style: { color: FG, fontSize: 13, lineHeight: "22px", marginBottom: 8 } }, zh) : null,
           en ? h("div", { style: { color: MUTED, fontSize: 12, lineHeight: "20px" } }, en) : null,
@@ -745,7 +899,30 @@ window.__ModuleLoader__.load({
               style: btnStyle(false, true)
             }, "在 GitHub 打开")
           ) : null
-        )
+        ),
+        // Close button pinned to the viewport top-right, always visible even
+        // while the content box scrolls.
+        h("button", {
+          type: "button",
+          title: "关闭",
+          onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onClose(); },
+          style: {
+            position: "fixed",
+            top: 20,
+            right: 24,
+            zIndex: 10002,
+            border: "1px solid #d1d5db",
+            background: "#ffffff",
+            color: "#111827",
+            fontWeight: 600,
+            fontSize: 13,
+            lineHeight: "20px",
+            padding: "8px 14px",
+            borderRadius: 999,
+            cursor: "pointer",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.18)"
+          }
+        }, "✕ 关闭")
       );
       return overlay(node);
     }
@@ -770,6 +947,7 @@ window.__ModuleLoader__.load({
       var dt = useState(null);
       var detail = dt[0], setDetail = dt[1];
       var full = p.full_name || "";
+      var id = p.npm_name || p.name || full;
       var author = p.author || ownerOf(full);
       var cmd = p.install || "";
       var cover = full ? ("https://opengraph.githubassets.com/1/" + full) : "";
@@ -848,7 +1026,7 @@ window.__ModuleLoader__.load({
           }
         }) : null,
         h("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
-          h("span", { style: { fontWeight: 600, fontSize: 14, color: FG } }, p.name || pkgName || full),
+          h("span", { style: { fontWeight: 600, fontSize: 14, color: FG } }, p.name || full),
           installed ? h("span", {
             style: {
               fontSize: 11,
@@ -1379,7 +1557,11 @@ window.__ModuleLoader__.load({
           display: "flex",
           flexDirection: "column",
           height: "100%",
+          width: "100%",
+          flex: 1,
           minHeight: 0,
+          minWidth: 0,
+          alignSelf: "stretch",
           color: FG,
           fontSize: 13,
           lineHeight: "20px",
@@ -1391,42 +1573,55 @@ window.__ModuleLoader__.load({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "12px 14px",
+            padding: "12px 20px",
             borderBottom: "1px solid " + LINE,
             flexShrink: 0
           }
         },
-          h("div", { style: { display: "flex", alignItems: "center", gap: 10, minWidth: 0, flexWrap: "wrap" } },
-            h("div", { style: { fontSize: 16, fontWeight: 600, color: FG } }, "插件库"),
-            h("button", {
-              type: "button",
-              onClick: function () { setView("installed"); setPage(1); },
-              style: {
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "3px 10px",
-                borderRadius: 999,
-                border: "1px solid " + (view === "installed" ? BRAND : LINE),
-                background: BG,
-                color: view === "installed" ? BRAND : FG,
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 650,
-                lineHeight: "18px"
-              }
-            }, "已安装 " + installed.length + (newerCount ? " · " + newerCount + " 个可更新" : ""))
-          ),
-          onClose ? h("button", { type: "button", onClick: onClose, style: btnStyle(false, false) }, "关闭") : null
+          h("div", {
+            style: {
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10
+            }
+          },
+            h("div", { style: { display: "flex", alignItems: "center", gap: 10, minWidth: 0, flexWrap: "wrap" } },
+              h("div", { style: { fontSize: 16, fontWeight: 600, color: FG } }, "插件库"),
+              h("button", {
+                type: "button",
+                onClick: function () { setView("installed"); setPage(1); },
+                style: {
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  border: "1px solid " + (view === "installed" ? BRAND : LINE),
+                  background: BG,
+                  color: view === "installed" ? BRAND : FG,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 650,
+                  lineHeight: "18px"
+                }
+              }, "已安装 " + installed.length + (newerCount ? " · " + newerCount + " 个可更新" : ""))
+            ),
+            onClose ? h("button", { type: "button", onClick: onClose, style: btnStyle(false, false) }, "关闭") : null
+          )
         ),
         h("div", {
           ref: listRef,
           style: {
             flex: 1,
             minHeight: 0,
+            minWidth: 0,
             overflowY: "auto",
             overflowX: "hidden",
-            padding: "12px 14px 20px"
+            padding: "12px 20px 20px",
+            width: "100%",
+            boxSizing: "border-box"
           }
         },
           h(RestartBanner, {
@@ -1533,7 +1728,15 @@ window.__ModuleLoader__.load({
             ),
             matched.length > 0 ? h(Pager, { cur: cur, pages: pages, setPage: setPage }) : null
           ) : null,
-          (view === "installed" || !loading) ? h("div", { "data-dsh-plugins-grid": "" }, cards) : null,
+          (view === "installed" || !loading) ? h("div", {
+            "data-dsh-plugins-grid": "",
+            style: {
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: 12,
+              alignItems: "stretch"
+            }
+          }, cards) : null,
           ((view === "installed" || (!loading && !error)) && matched.length === 0) ? h("div", { style: { color: MUTED } },
             view === "installed"
               ? (installed.length === 0
@@ -1550,6 +1753,49 @@ window.__ModuleLoader__.load({
 
     function CatalogView() {
       var coverSize = readLocalUi().coverSize;
+      var os = useState(storeOpen);
+      var open = os[0], setOpen = os[1];
+      useEffect(function () {
+        var un = subscribeStoreOpen(function (v) { setOpen(v); });
+        return un;
+      }, []);
+      useEffect(function () {
+        if (open) return hideStoreChrome();
+        return;
+      }, [open]);
+      if (!open) return null;
+      // Full-screen opaque page rendered inside the shell.overlay layer. The
+      // background is fully opaque so the conversation window is completely
+      // hidden while the store is open. It must NOT portal to document.body:
+      // the overlay layer is the shell's own stacking surface, and portaling
+      // out of it can break z-order in the desktop shell.
+      return h("div", {
+        "data-dsh-plugins-catalog": "",
+        style: {
+          position: "fixed",
+          inset: 0,
+          zIndex: 10000,
+          background: BG,
+          color: FG,
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+          pointerEvents: "auto"
+        }
+      },
+        h(CatalogErrorBoundary, null,
+          h(CatalogDrawer, {
+            coverSize: coverSize,
+            onClose: function () { setStoreOpen(false); }
+          })
+        )
+      );
+    }
+
+    // conversation.view variant: renders the catalog full-height inside the
+    // view ring, activated by the header view tab (owner-driven `only`).
+    function CatalogViewTab() {
+      var coverSize = readLocalUi().coverSize;
       useEffect(function () {
         return hideStoreChrome();
       }, []);
@@ -1558,68 +1804,19 @@ window.__ModuleLoader__.load({
         style: {
           height: "100%",
           minHeight: 0,
-          width: "100%"
+          minWidth: 0,
+          width: "100%",
+          flex: 1,
+          alignSelf: "stretch",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box"
         }
-      }, h(CatalogDrawer, { coverSize: coverSize }));
-    }
-
-    function ensureRailHost() {
-      if (typeof document === "undefined") return null;
-      var existing = document.querySelector("[data-dsh-plugins-rail]");
-      var workspaces = document.querySelector('[data-slot="sidebar.workspaces"]');
-      var sidebar = document.querySelector('[data-slot="sidebar"]');
-      if (!existing && !workspaces && !sidebar) return null;
-      var host = existing;
-      if (!host) {
-        host = document.createElement("div");
-        host.setAttribute("data-dsh-plugins-rail", "");
-        host.style.width = "100%";
-        host.style.boxSizing = "border-box";
-        host.style.flexShrink = "0";
-        host.style.position = "relative";
-        host.style.zIndex = "8";
-        host.style.pointerEvents = "auto";
-      }
-      if (workspaces && workspaces.parentNode) {
-        if (host.parentNode !== workspaces.parentNode || host.nextSibling !== workspaces) {
-          workspaces.parentNode.insertBefore(host, workspaces);
-        }
-      } else if (sidebar) {
-        if (host.parentNode !== sidebar || sidebar.firstChild !== host) {
-          sidebar.insertBefore(host, sidebar.firstChild);
-        }
-      } else {
-        return existing || null;
-      }
-      return host;
-    }
-
-    function removeRailHost() {
-      if (typeof document === "undefined") return;
-      var existing = document.querySelector("[data-dsh-plugins-rail]");
-      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-    }
-
-    function openCatalogView() {
-      if (typeof document === "undefined") return false;
-      var header = document.querySelector('[data-slot="conversation.session.header"]');
-      var roots = [];
-      if (header) roots.push(header);
-      roots.push(document);
-      for (var r = 0; r < roots.length; r++) {
-        var nodes = roots[r].querySelectorAll('button, [role="tab"], a, [data-slot]');
-        for (var i = 0; i < nodes.length; i++) {
-          var b = nodes[i];
-          if (b.closest && b.closest("[data-dsh-plugins-rail]")) continue;
-          if (b.closest && b.closest('[data-slot="settings.section"]')) continue;
-          if (b.closest && b.closest('[data-slot="sidebar.footer.action"]')) continue;
-          var label = String(b.textContent || b.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
-          if (label === "插件" || label === "插件库") {
-            try { b.click(); return true; } catch (e) {}
-          }
-        }
-      }
-      return false;
+      },
+        h(CatalogErrorBoundary, null,
+          h(CatalogDrawer, { coverSize: coverSize })
+        )
+      );
     }
 
     function SidebarStore(props) {
@@ -1628,8 +1825,6 @@ window.__ModuleLoader__.load({
       var show = sh[0], setShow = sh[1];
       var cs = useState(ui0.coverSize);
       var coverSize = cs[0], setCoverSize = cs[1];
-      var hs = useState(null);
-      var host = hs[0], setHost = hs[1];
       var nw = useState(false);
       var hasUpdate = nw[0], setHasUpdate = nw[1];
 
@@ -1676,60 +1871,44 @@ window.__ModuleLoader__.load({
         };
       }, []);
 
-      useEffect(function () {
-        if (show === false) {
-          removeRailHost();
-          setHost(null);
-          return;
-        }
-        var start = Date.now();
-        var timer = null;
-        function tick() {
-          var node = ensureRailHost();
-          if (node) {
-            setHost(node);
-            return;
-          }
-          if (Date.now() - start < 10000) {
-            timer = setTimeout(tick, 200);
-          }
-        }
-        tick();
-        return function () {
-          if (timer) clearTimeout(timer);
-        };
-      }, [show]);
-
       if (show === false) {
         return null;
       }
-      if (!host || !createPortal) return null;
 
-      var btn = h("button", {
+      // Render the sidebar entry as a normal slot cell so the shell places it
+      // beside Settings. Previously the button was createPortal'd into a DOM
+      // node scraped with hard-coded [data-slot] selectors; when those selectors
+      // didn't match (different shell/skin), the button never appeared and the
+      // catalog page could not be opened.
+      return h("button", {
         type: "button",
+        title: "插件库",
+        className: "dsh-plugins-sidebar-btn",
         onClick: function (e) {
           if (e && e.preventDefault) e.preventDefault();
           if (e && e.stopPropagation) e.stopPropagation();
-          openCatalogView();
+          setStoreOpen(true);
         },
+        // Aligned with the adjacent sidebar footer badges (settings / cordis
+        // panel): same 49px height, same horizontal padding, same radius.
         style: {
-          display: "flex",
+          display: "inline-flex",
           alignItems: "center",
           gap: 8,
           width: "100%",
-          padding: "8px 12px",
+          height: 49,
+          padding: "0 8px 0 6px",
           border: "none",
-          borderRadius: 8,
+          borderRadius: 12,
           background: "transparent",
           color: FG,
           cursor: "pointer",
           fontSize: 14,
-          lineHeight: "20px",
+          overflow: "hidden",
           boxSizing: "border-box",
           textAlign: "left",
-          pointerEvents: "auto",
-          position: "relative",
-          zIndex: 8
+          fontFamily: "inherit",
+          flexShrink: 0
         }
       },
         h(PluginIcon),
@@ -1747,8 +1926,6 @@ window.__ModuleLoader__.load({
           }
         }, "更新") : null
       );
-
-      return createPortal(btn, host);
     }
 
     function SettingsManage() {
@@ -1979,12 +2156,20 @@ window.__ModuleLoader__.load({
     }
 
     function apply(ctx) {
+      injectGridCss();
+      // Top header view tab "插件" (owner-activated view ring).
       ctx.slots.inject("conversation.view", () => ctx.slots.register({
         name: "conversation.view",
         id: "dsh-plugins",
         order: 20,
         label: () => "插件",
-        inject: () => ({}),
+      }, CatalogViewTab));
+      // Full-screen panel opened from the sidebar "插件" button.
+      ctx.slots.inject("shell.overlay", () => ctx.slots.register({
+        name: "shell.overlay",
+        id: "dsh-plugins-store",
+        order: 60,
+        label: () => "插件库",
       }, CatalogView));
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action",

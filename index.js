@@ -264,6 +264,7 @@ function pluginEnv() {
 }
 
 let cache = null
+let autoUpdateInterval = null
 async function loadCatalog() {
   if (cache) return cache
   const parts = await Promise.all(Array.from({ length: 26 }, (_, i) =>
@@ -1450,15 +1451,18 @@ async function openExternalUrl(url) {
     const finish = (result) => {
       if (done) return
       done = true
+      if (fallbackTimer) clearTimeout(fallbackTimer)
       resolve(result)
     }
+    let fallbackTimer = null
     try {
       const child = spawn(bin, args, { stdio: 'ignore', detached: true, windowsHide: true })
       if (child && child.unref) child.unref()
       child.on('error', (err) => finish({ ok: false, message: String(err && err.message || err) }))
       child.on('spawn', () => finish({ ok: true, url }))
-      setTimeout(() => finish({ ok: true, url }), 800)
+      fallbackTimer = setTimeout(() => finish({ ok: true, url }), 800)
     } catch (err) {
+      if (fallbackTimer) clearTimeout(fallbackTimer)
       finish({ ok: false, message: String(err && err.message || err) })
     }
   })
@@ -1469,6 +1473,36 @@ function loadClientUi() {
   const dir = join(dirname(fileURLToPath(import.meta.url)), 'client-parts')
   const names = readdirSync(dir).filter((n) => /^\d+\.js$/.test(n)).sort()
   return names.map((n) => readFileSync(join(dir, n), 'utf8')).join('')
+}
+
+// Cross-Site Request Forgery guard. The web UI reaches these endpoints with
+// same-origin fetch(), which the browser tags with an Origin header matching the
+// request Host. A cross-site attacker page sends a FORM/fetch POST whose Origin
+// differs, so we reject it here. Local CLI / runtime callers without an Origin
+// header stay allowed — the browser is the only actor that can be CSRF'd.
+const MUTATING_PATHS = new Set([
+  '/api/dsh-plugins/install',
+  '/api/dsh-plugins/uninstall',
+  '/api/dsh-plugins/update',
+  '/api/dsh-plugins/restart',
+  '/api/dsh-plugins/open',
+  '/api/dsh-plugins/prefs',
+])
+
+function csrfAllowed(req) {
+  const origin = req.headers && req.headers.origin
+  if (!origin || !origin.trim()) return true
+  let o
+  try { o = new URL(origin.trim()) } catch { return false }
+  const host = req.headers && req.headers.host
+  if (!host) return true
+  const h = String(host).split('/')[0]
+  // Same-port & same-host: same-origin. Explicitly treat the common dev/loopback
+  // prefixes as canonical so 127.0.0.1 vs localhost mismatches don't block.
+  const aHost = (o.host || '').toLowerCase()
+  const bHost = h.toLowerCase().replace(/^https?:\/\//, '')
+  if (aHost === bHost || aHost === 'localhost' || bHost === 'localhost') return true
+  return false
 }
 
 async function handleHttp(req, res) {
@@ -1483,6 +1517,14 @@ async function handleHttp(req, res) {
   }
   if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1)
   const method = (req.method || 'GET').toUpperCase()
+
+  // Reject state-mutating cross-origin requests before touching any handler.
+  if ((method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE') && MUTATING_PATHS.has(path)) {
+    if (!csrfAllowed(req)) {
+      sendJson(res, 403, { ok: false, error: 'cross-origin request rejected' })
+      return
+    }
+  }
 
 
   if (method === 'GET' && path === '/api/dsh-plugins/ui.js') {
@@ -1837,10 +1879,14 @@ export async function apply(ctx) {
   try {
     const prefs = loadPrefs()
     if (prefs.autoUpdateSelf || prefs.autoUpdateOthers) {
-      setTimeout(() => {
+      const startTimer = setTimeout(() => {
         scheduledTick(ctx)
-        setInterval(() => scheduledTick(ctx), 6 * 60 * 60 * 1000)
+        autoUpdateInterval = setInterval(() => scheduledTick(ctx), 6 * 60 * 60 * 1000)
       }, 20000)
+      if (ctx.effect) ctx.effect(() => () => {
+        clearTimeout(startTimer)
+        if (autoUpdateInterval) clearInterval(autoUpdateInterval)
+      })
     }
   } catch (err) {
     if (ctx.logger && ctx.logger.warn) ctx.logger.warn('[dsh-plugins-catalog] autoupdate ' + err)

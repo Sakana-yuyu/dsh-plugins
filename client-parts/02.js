@@ -1,3 +1,42 @@
+        author: slash > 0 ? full.slice(0, slash) : "",
+        warning: (row && row.warning) || "",
+        issues_url: (row && row.issues_url) || (full ? ("https://github.com/" + full + "/issues") : ""),
+        usable: row ? row.usable !== false : true,
+        self: !!(row && row.self)
+      }, row);
+    }
+
+    function Pager(props) {
+      var cur = props.cur;
+      var pages = props.pages;
+      var setPage = props.setPage;
+      var jp = useState(String(cur));
+      var jump = jp[0], setJump = jp[1];
+      useEffect(function () { setJump(String(cur)); }, [cur]);
+      function go(n) {
+        n = parseInt(n, 10);
+        if (!(n > 0)) n = 1;
+        if (n > pages) n = pages;
+        setPage(n);
+      }
+      return h("div", {
+        style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }
+      },
+        h("button", {
+          type: "button",
+          disabled: cur <= 1,
+          onClick: function () { go(1); },
+          style: btnStyle(cur <= 1, false)
+        }, "首页"),
+        h("button", {
+          type: "button",
+          disabled: cur <= 1,
+          onClick: function () { go(cur - 1); },
+          style: btnStyle(cur <= 1, false)
+        }, "上一页"),
+        h("form", {
+          onSubmit: function (e) { if (e && e.preventDefault) e.preventDefault(); go(jump); },
+          style: { display: "flex", alignItems: "center", gap: 6 }
         },
           h("input", {
             value: jump,
@@ -143,7 +182,7 @@
         style: {
           position: "fixed",
           inset: 0,
-          zIndex: 10000,
+          zIndex: 10001,
           background: "rgba(0,0,0,0.48)",
           display: "flex",
           alignItems: "center",
@@ -184,26 +223,13 @@
       return overlay(node);
     }
 
-    function hideStoreChrome() {
-      if (typeof document === "undefined") return function () {};
-      document.documentElement.setAttribute("data-dsh-plugins-store", "1");
-      var style = document.getElementById("dsh-plugins-store-css");
-      if (!style) {
-        style = document.createElement("style");
-        style.id = "dsh-plugins-store-css";
-        document.head.appendChild(style);
-      }
+    // Two-column card grid. Injected once at apply time so both the overlay
+    // store page and the conversation.view tab get the layout.
+    function injectGridCss() {
+      if (typeof document === "undefined") return;
+      var id = "dsh-plugins-grid-css";
+      if (document.getElementById(id)) return;
+      var style = document.createElement("style");
+      style.id = id;
       style.textContent = [
-        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer"]{display:none!important}',
-        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.bar"]{display:none!important}',
-        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.footer"]{display:none!important}',
-        'html[data-dsh-plugins-store="1"] [data-slot="conversation.input"]{display:none!important}',
-        '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}[data-dsh-plugins-grid]>*{height:100%;min-width:0}',
-        '@media (max-width:1100px){[data-dsh-plugins-grid]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}',
-        '@media (max-width:720px){[data-dsh-plugins-grid]{grid-template-columns:1fr!important}}'
-      ].join("");
-      var extra = [];
-      function hideNode(el) {
-        if (!el || el.getAttribute("data-dsh-plugins-hid")) return;
-        if (el.querySelector && el.querySelector("[data-dsh-plugins-catalog]")) return;
-        el.setAttribute("data-dsh-plugins-hid", "1");
+        // Equal-size card grid: auto-fill creates as many 300px columns as the

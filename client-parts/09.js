@@ -1,3 +1,112 @@
+              : "没有匹配的插件"
+          ) : null,
+          ((view === "installed" || (!loading && !error)) && matched.length > 0) ? h("div", { style: { marginTop: 14 } },
+            h(Pager, { cur: cur, pages: pages, setPage: setPage })
+          ) : null
+        )
+      );
+    }
+
+    function CatalogView() {
+      var coverSize = readLocalUi().coverSize;
+      var os = useState(storeOpen);
+      var open = os[0], setOpen = os[1];
+      useEffect(function () {
+        var un = subscribeStoreOpen(function (v) { setOpen(v); });
+        return un;
+      }, []);
+      useEffect(function () {
+        if (open) return hideStoreChrome();
+        return;
+      }, [open]);
+      if (!open) return null;
+      // Full-screen opaque page rendered inside the shell.overlay layer. The
+      // background is fully opaque so the conversation window is completely
+      // hidden while the store is open. It must NOT portal to document.body:
+      // the overlay layer is the shell's own stacking surface, and portaling
+      // out of it can break z-order in the desktop shell.
+      return h("div", {
+        "data-dsh-plugins-catalog": "",
+        style: {
+          position: "fixed",
+          inset: 0,
+          zIndex: 10000,
+          background: BG,
+          color: FG,
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+          pointerEvents: "auto"
+        }
+      },
+        h(CatalogErrorBoundary, null,
+          h(CatalogDrawer, {
+            coverSize: coverSize,
+            onClose: function () { setStoreOpen(false); }
+          })
+        )
+      );
+    }
+
+    // conversation.view variant: renders the catalog full-height inside the
+    // view ring, activated by the header view tab (owner-driven `only`).
+    function CatalogViewTab() {
+      var coverSize = readLocalUi().coverSize;
+      useEffect(function () {
+        return hideStoreChrome();
+      }, []);
+      return h("div", {
+        "data-dsh-plugins-catalog": "",
+        style: {
+          height: "100%",
+          minHeight: 0,
+          minWidth: 0,
+          width: "100%",
+          flex: 1,
+          alignSelf: "stretch",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box"
+        }
+      },
+        h(CatalogErrorBoundary, null,
+          h(CatalogDrawer, { coverSize: coverSize })
+        )
+      );
+    }
+
+    function SidebarStore(props) {
+      var ui0 = readLocalUi();
+      var sh = useState(ui0.showSidebar);
+      var show = sh[0], setShow = sh[1];
+      var cs = useState(ui0.coverSize);
+      var coverSize = cs[0], setCoverSize = cs[1];
+      var nw = useState(false);
+      var hasUpdate = nw[0], setHasUpdate = nw[1];
+
+      useEffect(function () {
+        function onUp(e) {
+          var d = (e && e.detail) || {};
+          setHasUpdate(!!d.newer || (d.newerCount > 0));
+        }
+        window.addEventListener(UPD_EVT, onUp);
+        fetchUpdateInfo(function (err, info) {
+          if (info) setHasUpdate(!!info.newer || (info.newerCount > 0));
+        });
+        return function () { window.removeEventListener(UPD_EVT, onUp); };
+      }, []);
+
+      useEffect(function () {
+        var dead = false;
+        fetch("/api/dsh-plugins/prefs")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (dead || !data || !data.ok || !data.prefs) return;
+            var p = data.prefs;
+            var nextShow = p.showSidebar !== false;
+            var nextCover = p.coverSize === "medium" ? "medium" : "large";
+            setShow(nextShow);
+            setCoverSize(nextCover);
             writeLocalUi({ showSidebar: nextShow, coverSize: nextCover });
           })
           .catch(function () {});
@@ -18,60 +127,44 @@
         };
       }, []);
 
-      useEffect(function () {
-        if (show === false) {
-          removeRailHost();
-          setHost(null);
-          return;
-        }
-        var start = Date.now();
-        var timer = null;
-        function tick() {
-          var node = ensureRailHost();
-          if (node) {
-            setHost(node);
-            return;
-          }
-          if (Date.now() - start < 10000) {
-            timer = setTimeout(tick, 200);
-          }
-        }
-        tick();
-        return function () {
-          if (timer) clearTimeout(timer);
-        };
-      }, [show]);
-
       if (show === false) {
         return null;
       }
-      if (!host || !createPortal) return null;
 
-      var btn = h("button", {
+      // Render the sidebar entry as a normal slot cell so the shell places it
+      // beside Settings. Previously the button was createPortal'd into a DOM
+      // node scraped with hard-coded [data-slot] selectors; when those selectors
+      // didn't match (different shell/skin), the button never appeared and the
+      // catalog page could not be opened.
+      return h("button", {
         type: "button",
+        title: "插件库",
+        className: "dsh-plugins-sidebar-btn",
         onClick: function (e) {
           if (e && e.preventDefault) e.preventDefault();
           if (e && e.stopPropagation) e.stopPropagation();
-          openCatalogView();
+          setStoreOpen(true);
         },
+        // Aligned with the adjacent sidebar footer badges (settings / cordis
+        // panel): same 49px height, same horizontal padding, same radius.
         style: {
-          display: "flex",
+          display: "inline-flex",
           alignItems: "center",
           gap: 8,
           width: "100%",
-          padding: "8px 12px",
+          height: 49,
+          padding: "0 8px 0 6px",
           border: "none",
-          borderRadius: 8,
+          borderRadius: 12,
           background: "transparent",
           color: FG,
           cursor: "pointer",
           fontSize: 14,
-          lineHeight: "20px",
+          overflow: "hidden",
           boxSizing: "border-box",
           textAlign: "left",
-          pointerEvents: "auto",
-          position: "relative",
-          zIndex: 8
+          fontFamily: "inherit",
+          flexShrink: 0
         }
       },
         h(PluginIcon),
@@ -89,8 +182,6 @@
           }
         }, "更新") : null
       );
-
-      return createPortal(btn, host);
     }
 
     function SettingsManage() {
@@ -151,77 +242,3 @@
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data && data.ok && data.prefs) setPrefs(data.prefs);
-          })
-          .catch(function () {});
-      }
-
-      function checkNow() {
-        if (busy) return;
-        setBusy(true);
-        setStatus("正在检查更新…");
-        fetch("/api/dsh-plugins/updates")
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (!data || !data.ok) {
-              setStatus((data && (data.error || data.message)) || "检查失败");
-              return;
-            }
-            var self = data.self || {};
-            function labelOf(item) {
-              if (!item) return "检查失败";
-              if (item.status === "error" || item.status === "unknown") return "检查失败";
-              if (item.newer) return "有更新";
-              if (item.status === "latest") return "已是最新";
-              return "检查失败";
-            }
-            var lines = [];
-            lines.push("本插件 " + (self.full_name || "Sakana-yuyu/dsh-plugins") +
-              " 当前 " + (self.current || "-") +
-              " / 最新 " + (self.latest || self.latestSha || "-") +
-              " · " + labelOf(self));
-            var inst = data.installed || [];
-            if (!inst.length) lines.push("未发现已安装的 github: 目录插件");
-            else {
-              lines.push("已安装 " + inst.length + " 个：");
-              for (var i = 0; i < inst.length; i++) {
-                var it = inst[i];
-                lines.push("- " + it.full_name + " 当前 " + (it.current || it.version || "-") + " / 最新 " + (it.latest || "-") + " · " + labelOf(it));
-              }
-            }
-            var anyNewer = !!self.newer || !!(data.newerCount);
-            var anyErr = self.status === "error" || inst.some(function (x) { return x && x.status === "error"; });
-            setNewer(anyNewer);
-            setStatusKind(anyNewer ? "warn" : (anyErr ? "err" : "ok"));
-            setStatus(lines.join("\n"));
-          })
-          .catch(function (e) {
-            setStatusKind("err");
-            setStatus(String((e && e.message) || e || "检查失败"));
-          })
-          .then(function () { setBusy(false); });
-      }
-
-      function postUpdate(target) {
-        if (busy) return;
-        setBusy(true);
-        setStatus(target === "all" ? "正在更新全部…" : "正在更新本插件…");
-        fetch("/api/dsh-plugins/update", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ target: target })
-        })
-          .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
-          .then(function (data) {
-            var text;
-            if (data && data.ok) text = data.message || "已更新。请完全退出 dsh-desktop 再打开，插件才会生效。";
-            else text = (data && (data.message || data.error || data.stderr)) || "更新失败";
-            setStatusKind((data && data.ok) ? "ok" : "err");
-            if (data && data.ok) {
-              setNewer(false);
-              writeRestartNeeded(true);
-              setShowRestartModal(true);
-            }
-            setStatus(String(text));
-          })
-          .catch(function (e) {
-            setStatusKind("err");

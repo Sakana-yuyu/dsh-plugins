@@ -1,3 +1,77 @@
+          })
+          .catch(function () {});
+      }
+
+      function checkNow() {
+        if (busy) return;
+        setBusy(true);
+        setStatus("正在检查更新…");
+        fetch("/api/dsh-plugins/updates")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data || !data.ok) {
+              setStatus((data && (data.error || data.message)) || "检查失败");
+              return;
+            }
+            var self = data.self || {};
+            function labelOf(item) {
+              if (!item) return "检查失败";
+              if (item.status === "error" || item.status === "unknown") return "检查失败";
+              if (item.newer) return "有更新";
+              if (item.status === "latest") return "已是最新";
+              return "检查失败";
+            }
+            var lines = [];
+            lines.push("本插件 " + (self.full_name || "Sakana-yuyu/dsh-plugins") +
+              " 当前 " + (self.current || "-") +
+              " / 最新 " + (self.latest || self.latestSha || "-") +
+              " · " + labelOf(self));
+            var inst = data.installed || [];
+            if (!inst.length) lines.push("未发现已安装的 github: 目录插件");
+            else {
+              lines.push("已安装 " + inst.length + " 个：");
+              for (var i = 0; i < inst.length; i++) {
+                var it = inst[i];
+                lines.push("- " + it.full_name + " 当前 " + (it.current || it.version || "-") + " / 最新 " + (it.latest || "-") + " · " + labelOf(it));
+              }
+            }
+            var anyNewer = !!self.newer || !!(data.newerCount);
+            var anyErr = self.status === "error" || inst.some(function (x) { return x && x.status === "error"; });
+            setNewer(anyNewer);
+            setStatusKind(anyNewer ? "warn" : (anyErr ? "err" : "ok"));
+            setStatus(lines.join("\n"));
+          })
+          .catch(function (e) {
+            setStatusKind("err");
+            setStatus(String((e && e.message) || e || "检查失败"));
+          })
+          .then(function () { setBusy(false); });
+      }
+
+      function postUpdate(target) {
+        if (busy) return;
+        setBusy(true);
+        setStatus(target === "all" ? "正在更新全部…" : "正在更新本插件…");
+        fetch("/api/dsh-plugins/update", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ target: target })
+        })
+          .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
+          .then(function (data) {
+            var text;
+            if (data && data.ok) text = data.message || "已更新。请完全退出 dsh-desktop 再打开，插件才会生效。";
+            else text = (data && (data.message || data.error || data.stderr)) || "更新失败";
+            setStatusKind((data && data.ok) ? "ok" : "err");
+            if (data && data.ok) {
+              setNewer(false);
+              writeRestartNeeded(true);
+              setShowRestartModal(true);
+            }
+            setStatus(String(text));
+          })
+          .catch(function (e) {
+            setStatusKind("err");
             setStatus(String((e && e.message) || e || "更新失败"));
           })
           .then(function () { setBusy(false); });
@@ -94,12 +168,20 @@
     }
 
     function apply(ctx) {
+      injectGridCss();
+      // Top header view tab "插件" (owner-activated view ring).
       ctx.slots.inject("conversation.view", () => ctx.slots.register({
         name: "conversation.view",
         id: "dsh-plugins",
         order: 20,
         label: () => "插件",
-        inject: () => ({}),
+      }, CatalogViewTab));
+      // Full-screen panel opened from the sidebar "插件" button.
+      ctx.slots.inject("shell.overlay", () => ctx.slots.register({
+        name: "shell.overlay",
+        id: "dsh-plugins-store",
+        order: 60,
+        label: () => "插件库",
       }, CatalogView));
       ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
         name: "sidebar.footer.action",

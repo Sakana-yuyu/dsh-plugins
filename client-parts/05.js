@@ -1,3 +1,149 @@
+              lineHeight: "20px",
+              whiteSpace: "pre-wrap",
+              overflowWrap: "anywhere"
+            }
+          }, readme) : h("div", { style: { color: MUTED, fontSize: 12 } }, "暂无 README"),
+          full ? h("div", { style: { marginTop: 16 } },
+            h("button", {
+              type: "button",
+              onClick: function (e) {
+                if (e && e.preventDefault) e.preventDefault();
+                if (e && e.stopPropagation) e.stopPropagation();
+                openExternal(repoUrl(p) || ("https://github.com/" + full));
+              },
+              style: btnStyle(false, true)
+            }, "在 GitHub 打开")
+          ) : null
+        ),
+        // Close button pinned to the viewport top-right, always visible even
+        // while the content box scrolls.
+        h("button", {
+          type: "button",
+          title: "关闭",
+          onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onClose(); },
+          style: {
+            position: "fixed",
+            top: 20,
+            right: 24,
+            zIndex: 10002,
+            border: "1px solid #d1d5db",
+            background: "#ffffff",
+            color: "#111827",
+            fontWeight: 600,
+            fontSize: 13,
+            lineHeight: "20px",
+            padding: "8px 14px",
+            borderRadius: 999,
+            cursor: "pointer",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.18)"
+          }
+        }, "✕ 关闭")
+      );
+      return overlay(node);
+    }
+
+    function PluginCard(props) {
+      var p = props.p;
+      var install = props.install;
+      var uninstall = props.uninstall;
+      var waiting = props.waiting;
+      var busyUn = props.busyUn;
+      var installed = !!props.installed;
+      var isSelf = !!props.isSelf;
+      var note = props.note;
+      var onUpdate = props.onUpdate;
+      var busyUp = !!props.busyUp;
+      var hasUpdate = !!(props.hasUpdate || (p && p.newer));
+      var hCover = coverH(props.coverSize);
+      var ex = useState(false);
+      var open = ex[0], setOpen = ex[1];
+      var cp = useState(false);
+      var copied = cp[0], setCopied = cp[1];
+      var dt = useState(null);
+      var detail = dt[0], setDetail = dt[1];
+      var full = p.full_name || "";
+      var id = p.npm_name || p.name || full;
+      var author = p.author || ownerOf(full);
+      var cmd = p.install || "";
+      var cover = full ? ("https://opengraph.githubassets.com/1/" + full) : "";
+      function onCopy() {
+        if (!cmd) return;
+        copyText(cmd).then(function () {
+          setCopied(true);
+          setTimeout(function () { setCopied(false); }, 1200);
+        }).catch(function () {});
+      }
+      function onOpenDetail() {
+        setOpen(true);
+        if (!detail && full) {
+          setDetail({ loading: true, images: [], readme_zh: "", readme_en: "", error: "" });
+          fetch("/api/dsh-plugins/detail?full_name=" + encodeURIComponent(full))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              var imgs = (data && data.images) || [];
+              if ((!imgs || !imgs.length) && data && data.og) imgs = [data.og];
+              setDetail({
+                loading: false,
+                images: imgs,
+                readme_zh: (data && data.readme_zh) || "",
+                readme_en: (data && data.readme_en) || "",
+                error: data && data.ok === false ? ((data.error || data.message) || "加载失败") : ""
+              });
+            })
+            .catch(function (e) {
+              setDetail({
+                loading: false,
+                images: [],
+                readme_zh: "",
+                readme_en: "",
+                error: String((e && e.message) || e || "加载失败")
+              });
+            });
+        }
+      }
+      var zh = p.description_zh || "";
+      var en = p.description_en || "";
+      return h("div", {
+        onClick: function (e) {
+          var t = e && e.target;
+          if (t && t.closest && t.closest("button, a, input, textarea")) return;
+          onOpenDetail();
+        },
+        style: {
+          border: "1px solid " + LINE,
+          background: BG,
+          borderRadius: 8,
+          padding: 10,
+          overflow: "hidden",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          minWidth: 0,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          cursor: "pointer"
+        }
+      },
+        cover ? h("img", {
+          src: cover,
+          alt: "",
+          style: {
+            width: "100%",
+            height: "auto",
+            maxHeight: hCover || "none",
+            aspectRatio: "2 / 1",
+            objectFit: "contain",
+            objectPosition: "center top",
+            background: "rgba(0,0,0,0.06)",
+            borderRadius: 6,
+            marginBottom: 8,
+            display: "block"
+          }
+        }) : null,
+        h("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+          h("span", { style: { fontWeight: 600, fontSize: 14, color: FG } }, p.name || full),
+          installed ? h("span", {
+            style: {
               fontSize: 11,
               padding: "1px 6px",
               borderRadius: 999,
@@ -67,125 +213,3 @@
             style: btnStyle(waiting || !id, true)
           }, waiting ? "安装中…" : "安装") : null,
           (installed && hasUpdate && onUpdate) ? h("button", {
-            type: "button",
-            disabled: busyUp || !id,
-            onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onUpdate(id); },
-            style: btnStyle(busyUp || !id, true)
-          }, busyUp ? "更新中…" : "更新") : null,
-          installed ? h("button", {
-            type: "button",
-            disabled: busyUn || isSelf || !id || p.removable === false,
-            title: isSelf ? "这是插件库本身" : "卸载此插件",
-            onClick: function () { if (uninstall) uninstall(id); },
-            style: btnStyle(busyUn || isSelf || !id || p.removable === false, false, !isSelf)
-          }, busyUn ? "卸载中…" : "卸载") : null,
-          h("button", {
-            type: "button",
-            onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onOpenDetail(); },
-            style: btnStyle(false, false)
-          }, "详情")
-        ),
-        open ? h(DetailModal, {
-          p: p,
-          detail: detail,
-          onClose: function () { setOpen(false); }
-        }) : null,
-        note ? h("div", {
-          style: { marginTop: 8, color: note.ok ? OK : ERR, fontSize: 12 }
-        }, note.text) : null,
-        p.warning ? h("div", {
-          style: { marginTop: 8, color: ERR, fontSize: 12, lineHeight: "18px" }
-        },
-          p.warning,
-          (p.issues_url || full) ? h("div", { style: { marginTop: 6 } },
-            h("a", {
-              href: p.issues_url || ("https://github.com/" + full + "/issues"),
-              target: "_blank",
-              rel: "noreferrer",
-              onClick: function (e) {
-                if (e && e.preventDefault) e.preventDefault();
-                if (e && e.stopPropagation) e.stopPropagation();
-                openExternal(p.issues_url || ("https://github.com/" + full + "/issues"));
-              },
-              style: { color: BRAND, fontWeight: 650 }
-            }, "联系作者")
-          ) : null
-        ) : null
-      );
-    }
-
-    function CatalogDrawer(props) {
-      var onClose = props.onClose;
-      var coverSize = props.coverSize || "large";
-      var st = useState([]);
-      var plugins = st[0], setPlugins = st[1];
-      var ld = useState(true);
-      var loading = ld[0], setLoading = ld[1];
-      var er = useState("");
-      var error = er[0], setError = er[1];
-      var dr = useState("");
-      var draft = dr[0], setDraft = dr[1];
-      var qst = useState("");
-      var query = qst[0], setQuery = qst[1];
-      var sc = useState("all");
-      var scope = sc[0], setScope = sc[1];
-      var ct = useState("all");
-      var cat = ct[0], setCat = ct[1];
-      var bz = useState({});
-      var busy = bz[0], setBusy = bz[1];
-      var ms = useState({});
-      var notes = ms[0], setNotes = ms[1];
-      var pg = useState(1);
-      var page = pg[0], setPage = pg[1];
-      var upd = useState(null);
-      var updateInfo = upd[0], setUpdateInfo = upd[1];
-      var ub = useState(false);
-      var updating = ub[0], setUpdating = ub[1];
-      var un = useState(null);
-      var updateNote = un[0], setUpdateNote = un[1];
-      var vw = useState("discover");
-      var view = vw[0], setView = vw[1];
-      var inst = useState([]);
-      var installed = inst[0], setInstalled = inst[1];
-      var rn = useState(readRestartNeeded());
-      var restartNeeded = rn[0], setRestartNeeded = rn[1];
-      var bu = useState({});
-      var busyUn = bu[0], setBusyUn = bu[1];
-      var bup = useState({});
-      var busyUp = bup[0], setBusyUp = bup[1];
-      var nc = useState(0);
-      var newerCount = nc[0], setNewerCount = nc[1];
-      var rm = useState(false);
-      var showRestartModal = rm[0], setShowRestartModal = rm[1];
-      var ck = useState(false);
-      var checking = ck[0], setChecking = ck[1];
-      var listRef = useRef(null);
-      var checkedInstalled = useRef(false);
-
-      function markRestart() {
-        writeRestartNeeded(true);
-        setRestartNeeded(true);
-      }
-      function refreshInstalled() {
-        fetchInstalled(function (err, list) {
-          if (list) setInstalled(list);
-        });
-      }
-      function applyUpdateData(data, info) {
-        if (info) {
-          setUpdateInfo(info);
-          setNewerCount(info.newerCount || 0);
-        } else if (data && data.self) {
-          setUpdateInfo({
-            ok: !!data.ok,
-            newer: !!(data.self && data.self.newer),
-            current: (data.self && data.self.current) || "",
-            latest: (data.self && data.self.latest) || "",
-            latestSha: (data.self && data.self.latestSha) || "",
-            status: (data.self && data.self.status) || "",
-            newerCount: data.newerCount || 0,
-            installed: data.installed || []
-          });
-          setNewerCount(data.newerCount || 0);
-        }
-        var rows = (data && data.installed) || (info && info.installed) || [];

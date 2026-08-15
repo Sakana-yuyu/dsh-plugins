@@ -1,4 +1,4 @@
-    var module = { exports: {} };
+var module = { exports: {} };
     var exports = module.exports;
     var React = require("react");
     var h = React.createElement;
@@ -43,6 +43,52 @@
     var RESTART_LS = "dsh-plugins-restart";
     var SELF_FULL = "Sakana-yuyu/dsh-plugins";
     var SITE = "https://sakana-yuyu.github.io/dsh-plugins/";
+
+    // Shared open-state for the full-screen plugin store panel. The sidebar
+    // "插件" button toggles it; the shell.overlay occupant renders the panel
+    // while open. The panel is fully self-contained (does not depend on
+    // activating a conversation.view tab, which the desktop shell would not
+    // reliably switch to from a sidebar action).
+    var storeOpen = false;
+    var storeListeners = [];
+    function setStoreOpen(v) {
+      v = !!v;
+      if (v === storeOpen) return;
+      storeOpen = v;
+      for (var k = 0; k < storeListeners.length; k++) {
+        try { storeListeners[k](v); } catch (e) {}
+      }
+    }
+    function subscribeStoreOpen(fn) {
+      storeListeners.push(fn);
+      return function () {
+        var i = storeListeners.indexOf(fn);
+        if (i >= 0) storeListeners.splice(i, 1);
+      };
+    }
+
+    // Error boundary: if the catalog UI throws during render, show the error
+    // instead of letting the slot abdicate (which blanks the view silently).
+    var CatalogErrorBoundary = (function () {
+      function CB(props) {
+        React.Component.call(this, props);
+        this.state = { err: null };
+      }
+      CB.prototype = Object.create(React.Component.prototype);
+      CB.prototype.constructor = CB;
+      CB.prototype.componentDidCatch = function (err) {
+        this.setState({ err: String((err && err.message) || err) });
+      };
+      CB.prototype.render = function () {
+        if (this.state.err) {
+          return h("div", {
+            style: { color: "#dc2626", padding: 16, fontSize: 13, lineHeight: "20px" }
+          }, "插件库渲染出错：" + this.state.err);
+        }
+        return this.props.children;
+      };
+      return CB;
+    })();
 
     function PluginIcon() {
       return h("svg", {
@@ -170,42 +216,3 @@
         removable: row && row.removable !== false,
         description: (row && row.spec) || "",
         install: "",
-        author: slash > 0 ? full.slice(0, slash) : "",
-        warning: (row && row.warning) || "",
-        issues_url: (row && row.issues_url) || (full ? ("https://github.com/" + full + "/issues") : ""),
-        usable: row ? row.usable !== false : true,
-        self: !!(row && row.self)
-      }, row);
-    }
-
-    function Pager(props) {
-      var cur = props.cur;
-      var pages = props.pages;
-      var setPage = props.setPage;
-      var jp = useState(String(cur));
-      var jump = jp[0], setJump = jp[1];
-      useEffect(function () { setJump(String(cur)); }, [cur]);
-      function go(n) {
-        n = parseInt(n, 10);
-        if (!(n > 0)) n = 1;
-        if (n > pages) n = pages;
-        setPage(n);
-      }
-      return h("div", {
-        style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }
-      },
-        h("button", {
-          type: "button",
-          disabled: cur <= 1,
-          onClick: function () { go(1); },
-          style: btnStyle(cur <= 1, false)
-        }, "首页"),
-        h("button", {
-          type: "button",
-          disabled: cur <= 1,
-          onClick: function () { go(cur - 1); },
-          style: btnStyle(cur <= 1, false)
-        }, "上一页"),
-        h("form", {
-          onSubmit: function (e) { if (e && e.preventDefault) e.preventDefault(); go(jump); },
-          style: { display: "flex", alignItems: "center", gap: 6 }

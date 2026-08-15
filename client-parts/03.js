@@ -1,3 +1,37 @@
+        // container width allows and every column shares the remaining width
+        // equally, so ALL cards are the same size (no stretched last row).
+        // Maximizing the window adds columns instead of widening cards.
+        '[data-dsh-plugins-catalog]{width:100%;max-width:none;flex:1 1 auto;min-width:0;align-self:stretch;box-sizing:border-box}',
+        '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}',
+        '[data-dsh-plugins-grid]>*{min-width:0}',
+        '.dsh-plugins-sidebar-btn:hover{background:rgba(0,0,0,0.06)}',
+        '.dsh-plugins-sidebar-btn:active{background:rgba(0,0,0,0.1)}'
+      ].join("");
+      document.head.appendChild(style);
+    }
+
+    function hideStoreChrome() {
+      if (typeof document === "undefined") return function () {};
+      document.documentElement.setAttribute("data-dsh-plugins-store", "1");
+      var style = document.getElementById("dsh-plugins-store-css");
+      if (!style) {
+        style = document.createElement("style");
+        style.id = "dsh-plugins-store-css";
+        document.head.appendChild(style);
+      }
+      style.textContent = [
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer"]{display:none!important}',
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.bar"]{display:none!important}',
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.composer.footer"]{display:none!important}',
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.input"]{display:none!important}',
+        'html[data-dsh-plugins-store="1"] [data-slot="conversation.view"]{width:100%!important;max-width:none!important;flex:1 1 auto!important;min-width:0!important}',
+        'html[data-dsh-plugins-store="1"] *:has([data-dsh-plugins-catalog]){max-width:none!important}'
+      ].join("");
+      var extra = [];
+      function hideNode(el) {
+        if (!el || el.getAttribute("data-dsh-plugins-hid")) return;
+        if (el.querySelector && el.querySelector("[data-dsh-plugins-catalog]")) return;
+        el.setAttribute("data-dsh-plugins-hid", "1");
         el.setAttribute("data-dsh-plugins-disp", el.style.display || "");
         el.style.display = "none";
         extra.push(el);
@@ -177,41 +211,3 @@
         boxSizing: "border-box"
       };
     }
-    function matchItem(p, q, scope, cat) {
-      if (scope === "official" && !p.official) return false;
-      if (scope === "community" && p.official) return false;
-      if (cat && cat !== "all" && p.category !== cat) return false;
-      if (!q) return true;
-      var blob = [p.name, p.full_name, p.author, p.description, p.description_zh, p.description_en, p.category_zh, p.category].join(" ").toLowerCase();
-      return blob.indexOf(q) >= 0;
-    }
-    function overlay(node) {
-      if (createPortal && typeof document !== "undefined" && document.body) {
-        return createPortal(node, document.body);
-      }
-      return node;
-    }
-
-    function sectionTitle(text) {
-      return h("div", {
-        style: { fontSize: 13, fontWeight: 600, color: FG, margin: "16px 0 8px" }
-      }, text);
-    }
-
-    function DetailModal(props) {
-      var p = props.p;
-      var detail = props.detail;
-      var onClose = props.onClose;
-      var full = p.full_name || "";
-      var pkgName = p.npm_name || p.name || "";
-      var id = pkgName || full;
-      var author = p.author || ownerOf(full);
-      var zh = p.description_zh || p.description || "";
-      var en = p.description_en || "";
-      var imgs = (detail && detail.images) || [];
-      if (imgs.length > 16) imgs = imgs.slice(0, 16);
-      var shot = [];
-      for (var ii = 0; ii < imgs.length; ii++) {
-        (function (src, idx) {
-          shot.push(h("a", {
-            key: String(idx) + src,
