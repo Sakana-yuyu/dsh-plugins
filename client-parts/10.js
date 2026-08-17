@@ -1,205 +1,229 @@
-          })
-          .catch(function () {});
-      }
-
-      function checkNow() {
-        if (busy) return;
-        setBusy(true);
-        setStatus("正在检查更新…");
-        fetch("/api/dsh-plugins/updates")
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (!data || !data.ok) {
-              setStatus((data && (data.error || data.message)) || "检查失败");
-              return;
-            }
-            var self = data.self || {};
-            function labelOf(item) {
-              if (!item) return "检查失败";
-              if (item.status === "error" || item.status === "unknown") return "检查失败";
-              if (item.newer) return "有更新";
-              if (item.status === "latest") return "已是最新";
-              return "检查失败";
-            }
-            var lines = [];
-            lines.push("本插件 " + (self.full_name || "Sakana-yuyu/dsh-plugins") +
-              " 当前 " + (self.current || "-") +
-              " / 最新 " + (self.latest || self.latestSha || "-") +
-              " · " + labelOf(self));
-            var inst = data.installed || [];
-            if (!inst.length) lines.push("未发现已安装的 github: 目录插件");
-            else {
-              lines.push("已安装 " + inst.length + " 个：");
-              for (var i = 0; i < inst.length; i++) {
-                var it = inst[i];
-                lines.push("- " + it.full_name + " 当前 " + (it.current || it.version || "-") + " / 最新 " + (it.latest || "-") + " · " + labelOf(it));
-              }
-            }
-            var anyNewer = !!self.newer || !!(data.newerCount);
-            var anyErr = self.status === "error" || inst.some(function (x) { return x && x.status === "error"; });
-            setNewer(anyNewer);
-            setStatusKind(anyNewer ? "warn" : (anyErr ? "err" : "ok"));
-            setStatus(lines.join("\n"));
-          })
-          .catch(function (e) {
-            setStatusKind("err");
-            setStatus(String((e && e.message) || e || "检查失败"));
-          })
-          .then(function () { setBusy(false); });
-      }
-
-      function postUpdate(target) {
-        if (busy) return;
-        setBusy(true);
-        setStatus(target === "all" ? "正在更新全部…" : "正在更新本插件…");
-        fetch("/api/dsh-plugins/update", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ target: target })
-        })
-          .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
-          .then(function (data) {
-            var text;
-            if (data && data.ok) text = data.message || "已更新。请完全退出 dsh-desktop 再打开，插件才会生效。";
-            else text = (data && (data.message || data.error || data.stderr)) || "更新失败";
-            setStatusKind((data && data.ok) ? "ok" : "err");
-            if (data && data.ok) {
-              setNewer(false);
-              writeRestartNeeded(true);
-              setShowRestartModal(true);
-            }
-            setStatus(String(text));
-          })
-          .catch(function (e) {
-            setStatusKind("err");
-            setStatus(String((e && e.message) || e || "更新失败"));
-          })
-          .then(function () { setBusy(false); });
-      }
-
-      function toggleRow(label, on, set) {
-        return h("label", {
-          style: { display: "flex", alignItems: "center", gap: 8, margin: "10px 0", cursor: "pointer", color: FG }
-        },
-          h("input", {
-            type: "checkbox",
-            checked: !!on,
-            onChange: function (e) { set(e.target.checked); }
-          }),
-          h("span", null, label)
-        );
-      }
-
+      // the overlay layer is the shell's own stacking surface, and portaling
+      // out of it can break z-order in the desktop shell.
       return h("div", {
+        "data-dsh-plugins-catalog": "",
         style: {
-          padding: "8px 4px 16px",
+          position: "fixed",
+          inset: 0,
+          zIndex: 10000,
+          background: BG,
           color: FG,
-          fontSize: 13,
-          lineHeight: "20px",
-          maxWidth: "100%",
-          boxSizing: "border-box"
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+          pointerEvents: "auto"
         }
       },
-        h("div", { style: { fontSize: 16, fontWeight: 600, marginBottom: 4, color: FG } }, "插件库"),
-        h(RestartModal, {
-          show: showRestartModal,
-          onLater: function () { setShowRestartModal(false); },
-          onRestart: function () { setShowRestartModal(false); restartNow(); }
-        }),
-        h("div", { style: { color: MUTED, marginBottom: 12 } }, "管理侧边栏展示和自动更新"),
-        toggleRow("在侧边栏显示插件库", prefs.showSidebar !== false, function (v) { patchPrefs({ showSidebar: v }); }),
-        h("div", { style: { margin: "10px 0 6px", color: FG } }, "封面大小"),
-        h("div", { style: { marginBottom: 10 } },
-          h("button", {
-            type: "button",
-            onClick: function () { patchPrefs({ coverSize: "large" }); },
-            style: chipStyle(prefs.coverSize !== "medium")
-          }, "大图"),
-          h("button", {
-            type: "button",
-            onClick: function () { patchPrefs({ coverSize: "medium" }); },
-            style: chipStyle(prefs.coverSize === "medium")
-          }, "中图")
-        ),
-        toggleRow("自动更新本目录插件", !!prefs.autoUpdateSelf, function (v) { patchPrefs({ autoUpdateSelf: v }); }),
-        toggleRow("自动更新已安装的目录插件", !!prefs.autoUpdateOthers, function (v) { patchPrefs({ autoUpdateOthers: v }); }),
-        h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 } },
-          h("button", { type: "button", disabled: busy, onClick: checkNow, style: btnStyle(busy, true) }, "立即检查更新"),
-          h("button", { type: "button", disabled: busy, onClick: function () { postUpdate("self"); }, style: btnStyle(busy, false) }, "更新本插件"),
-          h("button", { type: "button", disabled: busy, onClick: function () { postUpdate("all"); }, style: btnStyle(busy, false) }, "更新全部")
-        ),
-        newer ? h("div", {
-          style: {
-            marginTop: 12,
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1px solid " + BRAND,
-            color: BRAND,
-            fontWeight: 650
-          }
-        }, "有可用更新，请点「更新本插件」，完成后请完全退出 dsh-desktop 再打开") : null,
-        status ? h("div", {
-          style: {
-            marginTop: 10,
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1px solid " + (statusKind === "ok" ? OK : statusKind === "err" ? ERR : statusKind === "warn" ? BRAND : LINE),
-            color: statusKind === "ok" ? OK : statusKind === "err" ? ERR : statusKind === "warn" ? BRAND : FG,
-            background: BG,
-            whiteSpace: "pre-wrap",
-            fontSize: 13,
-            lineHeight: "20px",
-            fontWeight: 600
-          }
-        }, status) : null,
-        h("div", { style: { marginTop: 14 } },
-          h("a", {
-            href: SITE,
-            target: "_blank",
-            rel: "noreferrer",
-            onClick: function (e) {
-              if (e && e.preventDefault) e.preventDefault();
-              openExternal(SITE);
-            },
-            style: { color: BRAND, textDecoration: "none", fontSize: 12 }
-          }, "在线目录")
+        h(CatalogErrorBoundary, null,
+          h(CatalogDrawer, {
+            coverSize: coverSize,
+            onClose: function () { setStoreOpen(false); }
+          })
         )
       );
     }
 
-    function apply(ctx) {
-      injectGridCss();
-      // Top header view tab "插件" (owner-activated view ring).
-      ctx.slots.inject("conversation.view", () => ctx.slots.register({
-        name: "conversation.view",
-        id: "dsh-plugins",
-        order: 20,
-        label: () => "插件",
-      }, CatalogViewTab));
-      // Full-screen panel opened from the sidebar "插件" button.
-      ctx.slots.inject("shell.overlay", () => ctx.slots.register({
-        name: "shell.overlay",
-        id: "dsh-plugins-store",
-        order: 60,
-        label: () => "插件库",
-      }, CatalogView));
-      ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
-        name: "sidebar.footer.action",
-        id: "dsh-plugins-catalog",
-        order: 40,
-        label: () => "插件",
-        inject: () => ({}),
-      }, SidebarStore));
-      ctx.slots.inject("settings.section", () => ctx.slots.register({
-        name: "settings.section",
-        id: "dsh-plugins-catalog",
-        order: 55,
-        label: () => "插件",
-        inject: () => ({}),
-      }, SettingsManage));
+    // conversation.view variant: renders the catalog full-height inside the
+    // view ring, activated by the header view tab (owner-driven `only`).
+    function CatalogViewTab() {
+      var coverSize = readLocalUi().coverSize;
+      useEffect(function () {
+        return hideStoreChrome();
+      }, []);
+      return h("div", {
+        "data-dsh-plugins-catalog": "",
+        style: {
+          height: "100%",
+          minHeight: 0,
+          minWidth: 0,
+          width: "100%",
+          flex: 1,
+          alignSelf: "stretch",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box"
+        }
+      },
+        h(CatalogErrorBoundary, null,
+          h(CatalogDrawer, { coverSize: coverSize })
+        )
+      );
     }
 
-    exports.name = "dsh-plugins-catalog-client";
-    exports.inject = ["slots"];
-    exports.apply = apply;
-    return module.exports;
+    function SidebarStore(props) {
+      var ui0 = readLocalUi();
+      var sh = useState(ui0.showSidebar);
+      var show = sh[0], setShow = sh[1];
+      var cs = useState(ui0.coverSize);
+      var coverSize = cs[0], setCoverSize = cs[1];
+      var nw = useState(false);
+      var hasUpdate = nw[0], setHasUpdate = nw[1];
+      // Theme-aware foreground: the sidebar cell is transparent, so a dark
+      // shell would swallow the near-black default FG and the button (and its
+      // icon) become invisible. Track dark mode live — the theme presenter
+      // flips body[data-ds-dark-theme] / color-scheme at runtime, and the
+      // luminance probe falls back for skins that only repaint CSS.
+      var dt = useState(darkThemeActive());
+      var dark = dt[0], setDark = dt[1];
+
+      useEffect(function () {
+        function update() { setDark(darkThemeActive()); }
+        update();
+        var mo = null;
+        try {
+          if (document.body && window.MutationObserver) {
+            mo = new MutationObserver(update);
+            mo.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "class", "style"] });
+          }
+        } catch (e) {}
+        var mq = null;
+        try { mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null; } catch (e) {}
+        if (mq && mq.addEventListener) mq.addEventListener("change", update);
+        window.addEventListener(EVT, update);
+        return function () {
+          if (mo) mo.disconnect();
+          if (mq && mq.removeEventListener) mq.removeEventListener("change", update);
+          window.removeEventListener(EVT, update);
+        };
+      }, []);
+
+      useEffect(function () {
+        function onUp(e) {
+          var d = (e && e.detail) || {};
+          setHasUpdate(!!d.newer || (d.newerCount > 0));
+        }
+        window.addEventListener(UPD_EVT, onUp);
+        fetchUpdateInfo(function (err, info) {
+          if (info) setHasUpdate(!!info.newer || (info.newerCount > 0));
+        });
+        return function () { window.removeEventListener(UPD_EVT, onUp); };
+      }, []);
+
+      useEffect(function () {
+        var dead = false;
+        fetch("/api/dsh-plugins/prefs")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (dead || !data || !data.ok || !data.prefs) return;
+            var p = data.prefs;
+            var nextShow = p.showSidebar !== false;
+            var nextCover = p.coverSize === "medium" ? "medium" : "large";
+            setShow(nextShow);
+            setCoverSize(nextCover);
+            writeLocalUi({ showSidebar: nextShow, coverSize: nextCover });
+          })
+          .catch(function () {});
+        function onEvt(e) {
+          var d = (e && e.detail) || readLocalUi();
+          setShow(d.showSidebar !== false);
+          if (d.coverSize) setCoverSize(d.coverSize);
+        }
+        function onStorage(e) {
+          if (e.key === LS_KEY) onEvt();
+        }
+        window.addEventListener(EVT, onEvt);
+        window.addEventListener("storage", onStorage);
+        return function () {
+          dead = true;
+          window.removeEventListener(EVT, onEvt);
+          window.removeEventListener("storage", onStorage);
+        };
+      }, []);
+
+      if (show === false) {
+        return null;
+      }
+
+      // On a dark shell the near-black default FG disappears; use a light
+      // foreground and lighter hover/active tints so the entry stays visible.
+      var btnFg = dark ? "#f3f4f6" : FG;
+      var btnHover = dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)";
+      var btnActive = dark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.1)";
+
+      // Render the sidebar entry as a normal slot cell so the shell places it
+      // beside Settings. Previously the button was createPortal'd into a DOM
+      // node scraped with hard-coded [data-slot] selectors; when those selectors
+      // didn't match (different shell/skin), the button never appeared and the
+      // catalog page could not be opened.
+      return h("button", {
+        type: "button",
+        title: "插件库",
+        className: "dsh-plugins-sidebar-btn",
+        onClick: function (e) {
+          if (e && e.preventDefault) e.preventDefault();
+          if (e && e.stopPropagation) e.stopPropagation();
+          setStoreOpen(true);
+        },
+        // Aligned with the adjacent sidebar footer badges (settings / cordis
+        // panel): same 49px height, same horizontal padding, same radius.
+        style: {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          width: "100%",
+          height: 49,
+          padding: "0 8px 0 6px",
+          border: "none",
+          borderRadius: 12,
+          background: "transparent",
+          color: btnFg,
+          cursor: "pointer",
+          fontSize: 14,
+          overflow: "hidden",
+          boxSizing: "border-box",
+          textAlign: "left",
+          fontFamily: "inherit",
+          flexShrink: 0,
+          "--dshp-hover": btnHover,
+          "--dshp-active": btnActive
+        }
+      },
+        h(PluginIcon),
+        h("span", null, "插件"),
+        hasUpdate ? h("span", {
+          style: {
+            marginLeft: "auto",
+            fontSize: 11,
+            lineHeight: "16px",
+            padding: "0 6px",
+            borderRadius: 999,
+            background: BRAND,
+            color: "#fff",
+            fontWeight: 650
+          }
+        }, "更新") : null
+      );
+    }
+
+    function SettingsManage() {
+      var ui0 = readLocalUi();
+      var pf = useState({
+        showSidebar: ui0.showSidebar,
+        coverSize: ui0.coverSize,
+        autoUpdateSelf: true,
+        autoUpdateOthers: false
+      });
+      var prefs = pf[0], setPrefs = pf[1];
+      var st = useState("");
+      var status = st[0], setStatus = st[1];
+      var bz = useState(false);
+      var busy = bz[0], setBusy = bz[1];
+      var kind = useState("info");
+      var statusKind = kind[0], setStatusKind = kind[1];
+      var hasNew = useState(false);
+      var newer = hasNew[0], setNewer = hasNew[1];
+      var rm = useState(false);
+      var showRestartModal = rm[0], setShowRestartModal = rm[1];
+      // Same dark-theme awareness as the sidebar entry: the settings section
+      // renders on the shell's own surface, so keep the foreground readable
+      // when that surface is dark.
+      var dt = useState(darkThemeActive());
+      var dark = dt[0], setDark = dt[1];
+
+      useEffect(function () {
+        function update() { setDark(darkThemeActive()); }
+        update();
+        var mo = null;
+        try {
+          if (document.body && window.MutationObserver) {
+            mo = new MutationObserver(update);

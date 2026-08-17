@@ -47,6 +47,58 @@ window.__ModuleLoader__.load({
     var SELF_FULL = "Sakana-yuyu/dsh-plugins";
     var SITE = "https://sakana-yuyu.github.io/dsh-plugins/";
 
+    // Dark-theme detection for the sidebar entry. The DSH theme presenter marks
+    // dark palettes with body[data-ds-dark-theme] and html { color-scheme }, so
+    // those are the primary signals; a prefers-color-scheme query covers
+    // system-following shells, and a luminance probe over the button's real
+    // background catches skins that repaint without setting the attribute. The
+    // sidebar button lives on a transparent cell, so the probe walks up to the
+    // first opaque ancestor instead of judging the button itself.
+    function parseRgbColor(str) {
+      var m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(String(str || ""));
+      if (!m) return null;
+      return [Number(m[1]), Number(m[2]), Number(m[3])];
+    }
+    function relativeLuminance(rgb) {
+      var f = function (v) {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]);
+    }
+    function sampleOpaqueBackgroundLuminance() {
+      try {
+        var node = document.querySelector(".dsh-plugins-sidebar-btn");
+        var limit = document.body || document.documentElement;
+        while (node && node !== limit) {
+          var bg = getComputedStyle(node).backgroundColor;
+          var transparent = !bg || bg === "transparent" || /rgba\(0, 0, 0, 0\)/.test(bg);
+          var rgb = parseRgbColor(bg);
+          if (!transparent && rgb) return relativeLuminance(rgb);
+          node = node.parentElement;
+        }
+      } catch (e) {}
+      return null;
+    }
+    function darkThemeActive() {
+      // The DSH presenter writes both signals for every resolved theme, so
+      // they are authoritative in both directions — never fall through to
+      // matchMedia/luminance when the shell already said "light".
+      try {
+        if (document.body && document.body.hasAttribute("data-ds-dark-theme")) return true;
+      } catch (e) {}
+      try {
+        var scheme = document.documentElement && document.documentElement.style.colorScheme;
+        if (scheme) return scheme === "dark";
+      } catch (e) {}
+      try {
+        if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return true;
+      } catch (e) {}
+      var sampled = sampleOpaqueBackgroundLuminance();
+      if (sampled !== null) return sampled < 0.35;
+      return false;
+    }
+
     // Shared open-state for the full-screen plugin store panel. The sidebar
     // "插件" button toggles it; the shell.overlay occupant renders the panel
     // while open. The panel is fully self-contained (does not depend on
@@ -144,11 +196,22 @@ window.__ModuleLoader__.load({
         .catch(function (e) { if (cb) cb(e); });
     }
     function restartNow() {
-      fetch("/api/dsh-plugins/restart", { method: "POST" }).catch(function () {});
-      var inv = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke;
+      // Desktop shell: prefer a full app relaunch (Rust shell + Host). The
+      // previous code invoked "plugin:process|restart", which the desktop
+      // shell never registered, so it silently fell back to reloading the
+      // page while only the backend restarted — the shell window kept the
+      // stale UI. invoke("restart_app") relaunches the whole desktop process;
+      // on failure (plain web, or an older shell) fall back to the backend
+      // restart endpoint.
+      var inv = (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke)
+        || (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke);
       if (typeof inv === "function") {
-        inv("plugin:process|restart").catch(function () { return inv("plugin:process|exit", { code: 0 }); });
+        inv("restart_app").catch(function () {
+          fetch("/api/dsh-plugins/restart", { method: "POST" }).catch(function () {});
+        });
+        return;
       }
+      fetch("/api/dsh-plugins/restart", { method: "POST" }).catch(function () {});
       setTimeout(function () { location.reload(); }, 1200);
     }
     function readRestartNeeded() {
@@ -223,7 +286,10 @@ window.__ModuleLoader__.load({
         warning: (row && row.warning) || "",
         issues_url: (row && row.issues_url) || (full ? ("https://github.com/" + full + "/issues") : ""),
         usable: row ? row.usable !== false : true,
-        self: !!(row && row.self)
+        self: !!(row && row.self),
+        entryId: (row && row.entryId) || "",
+        enabled: row ? row.enabled !== false : true,
+        toggleable: !!(row && row.toggleable)
       }, row);
     }
 
@@ -460,8 +526,16 @@ window.__ModuleLoader__.load({
         '[data-dsh-plugins-catalog]{width:100%;max-width:none;flex:1 1 auto;min-width:0;align-self:stretch;box-sizing:border-box}',
         '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}',
         '[data-dsh-plugins-grid]>*{min-width:0}',
-        '.dsh-plugins-sidebar-btn:hover{background:rgba(0,0,0,0.06)}',
-        '.dsh-plugins-sidebar-btn:active{background:rgba(0,0,0,0.1)}'
+        // Sidebar entry: the shell stacks footer actions in one flex row, so
+        // another plugin's footer button would crowd this one. The slot
+        // wrapper is display:contents (inline), so select its flex parent
+        // (:has) and let it wrap; this entry then owns its own full row and
+        // sits at the very bottom (order after every sibling action).
+        '.dsh-plugins-sidebar-btn{--dshp-hover:rgba(0,0,0,0.06);--dshp-active:rgba(0,0,0,0.1);order:999;flex:0 0 100%;max-width:100%;width:100%}',
+        '.dsh-plugins-sidebar-btn:hover{background:var(--dshp-hover)}',
+        '.dsh-plugins-sidebar-btn:active{background:var(--dshp-active)}',
+        'div:has(> [data-slot="sidebar.footer.action"]){flex-wrap:wrap}',
+        '.dsh-plugins-sidebar-btn+.dsh-plugins-sidebar-btn{margin-top:4px}'
       ].join("");
       document.head.appendChild(style);
     }
@@ -931,6 +1005,7 @@ window.__ModuleLoader__.load({
       var p = props.p;
       var install = props.install;
       var uninstall = props.uninstall;
+      var toggle = props.toggle;
       var waiting = props.waiting;
       var busyUn = props.busyUn;
       var installed = !!props.installed;
@@ -939,6 +1014,8 @@ window.__ModuleLoader__.load({
       var onUpdate = props.onUpdate;
       var busyUp = !!props.busyUp;
       var hasUpdate = !!(props.hasUpdate || (p && p.newer));
+      var enabled = p && p.enabled !== false;
+      var toggleable = !!(toggle && p && p.toggleable);
       var hCover = coverH(props.coverSize);
       var ex = useState(false);
       var open = ex[0], setOpen = ex[1];
@@ -1061,7 +1138,17 @@ window.__ModuleLoader__.load({
           (p.install_method === "npm" || p.npm_name) ? h("span", {
             style: { fontSize: 11, padding: "1px 6px", borderRadius: 999, border: "1px solid " + BRAND, color: BRAND, background: BG }
           }, "npm") : null,
-          h("span", { style: { color: MUTED, fontSize: 12 } }, "stars " + (p.stars || 0))
+          h("span", { style: { color: MUTED, fontSize: 12 } }, "stars " + (p.stars || 0)),
+          (!enabled && toggleable) ? h("span", {
+            style: {
+              fontSize: 11,
+              padding: "1px 6px",
+              borderRadius: 999,
+              border: "1px solid " + MUTED,
+              color: MUTED,
+              background: BG
+            }
+          }, "已禁用") : null
         ),
         h("div", { style: { color: MUTED, fontSize: 12, marginTop: 4 } },
           (author ? author + " · " : "") + (p.category_zh || p.category || "")
@@ -1112,6 +1199,13 @@ window.__ModuleLoader__.load({
             onClick: function () { if (uninstall) uninstall(id); },
             style: btnStyle(busyUn || isSelf || !id || p.removable === false, false, !isSelf)
           }, busyUn ? "卸载中…" : "卸载") : null,
+          (installed && toggleable) ? h("button", {
+            type: "button",
+            disabled: busyUn,
+            title: enabled ? "禁用后重启不再加载此插件" : "启用此插件",
+            onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (toggle) toggle(p); },
+            style: btnStyle(busyUn, !enabled)
+          }, enabled ? "禁用" : "启用") : null,
           h("button", {
             type: "button",
             onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onOpenDetail(); },
@@ -1414,6 +1508,58 @@ window.__ModuleLoader__.load({
           });
       }, [busyUn]);
 
+      var toggle = useCallback(function (row) {
+        if (!row || busyUn[row.name] || busyUn[row.entryId]) return;
+        var key = row.name || row.entryId;
+        var next = !(row.enabled !== false);
+        setBusyUn(function (b) {
+          var n = {};
+          for (var k in b) n[k] = b[k];
+          n[key] = true;
+          return n;
+        });
+        setNotes(function (m) {
+          var n = {};
+          for (var k in m) n[k] = m[k];
+          delete n[key];
+          return n;
+        });
+        fetch("/api/dsh-plugins/toggle", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ full_name: row.full_name || row.name, name: row.name, enabled: next })
+        })
+          .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
+          .then(function (data) {
+            var text = (data && (data.message || data.error)) || (data && data.ok ? (next ? "已启用" : "已禁用") : "操作失败");
+            setNotes(function (m) {
+              var n = {};
+              for (var k in m) n[k] = m[k];
+              n[key] = { ok: !!(data && data.ok), text: String(text) };
+              return n;
+            });
+            if (data && data.ok && data.needsRestart) {
+              markRestart();
+            }
+            refreshInstalled();
+          })
+          .catch(function (e) {
+            setNotes(function (m) {
+              var n = {};
+              for (var k in m) n[k] = m[k];
+              n[key] = { ok: false, text: String((e && e.message) || e || "操作失败") };
+              return n;
+            });
+          })
+          .then(function () {
+            setBusyUn(function (b) {
+              var n = {};
+              for (var k in b) if (k !== key) n[k] = b[k];
+              return n;
+            });
+          });
+      }, [busyUn]);
+
       function afterUpdateOk() {
         markRestart();
         setShowRestartModal(true);
@@ -1535,12 +1681,16 @@ window.__ModuleLoader__.load({
             if (row.current || row.version) cardItem.current = row.current || row.version;
             if (row.latest) cardItem.latest = row.latest;
             if (row.status) cardItem.status = row.status;
+            if (row.entryId) cardItem.entryId = row.entryId;
+            if (row.enabled !== undefined) cardItem.enabled = row.enabled !== false;
+            if (row.toggleable !== undefined) cardItem.toggleable = !!row.toggleable;
           }
           cards.push(h(PluginCard, {
             key: id || full || String(item.rank) + item.name,
             p: cardItem,
             install: install,
             uninstall: uninstall,
+            toggle: toggle,
             waiting: !!busy[id] || !!busy[full],
             busyUn: !!busyUn[id] || !!busyUn[full],
             busyUp: !!busyUp[id] || !!busyUp[full],
@@ -1829,6 +1979,34 @@ window.__ModuleLoader__.load({
       var coverSize = cs[0], setCoverSize = cs[1];
       var nw = useState(false);
       var hasUpdate = nw[0], setHasUpdate = nw[1];
+      // Theme-aware foreground: the sidebar cell is transparent, so a dark
+      // shell would swallow the near-black default FG and the button (and its
+      // icon) become invisible. Track dark mode live — the theme presenter
+      // flips body[data-ds-dark-theme] / color-scheme at runtime, and the
+      // luminance probe falls back for skins that only repaint CSS.
+      var dt = useState(darkThemeActive());
+      var dark = dt[0], setDark = dt[1];
+
+      useEffect(function () {
+        function update() { setDark(darkThemeActive()); }
+        update();
+        var mo = null;
+        try {
+          if (document.body && window.MutationObserver) {
+            mo = new MutationObserver(update);
+            mo.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "class", "style"] });
+          }
+        } catch (e) {}
+        var mq = null;
+        try { mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null; } catch (e) {}
+        if (mq && mq.addEventListener) mq.addEventListener("change", update);
+        window.addEventListener(EVT, update);
+        return function () {
+          if (mo) mo.disconnect();
+          if (mq && mq.removeEventListener) mq.removeEventListener("change", update);
+          window.removeEventListener(EVT, update);
+        };
+      }, []);
 
       useEffect(function () {
         function onUp(e) {
@@ -1877,6 +2055,12 @@ window.__ModuleLoader__.load({
         return null;
       }
 
+      // On a dark shell the near-black default FG disappears; use a light
+      // foreground and lighter hover/active tints so the entry stays visible.
+      var btnFg = dark ? "#f3f4f6" : FG;
+      var btnHover = dark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)";
+      var btnActive = dark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.1)";
+
       // Render the sidebar entry as a normal slot cell so the shell places it
       // beside Settings. Previously the button was createPortal'd into a DOM
       // node scraped with hard-coded [data-slot] selectors; when those selectors
@@ -1903,14 +2087,16 @@ window.__ModuleLoader__.load({
           border: "none",
           borderRadius: 12,
           background: "transparent",
-          color: FG,
+          color: btnFg,
           cursor: "pointer",
           fontSize: 14,
           overflow: "hidden",
           boxSizing: "border-box",
           textAlign: "left",
           fontFamily: "inherit",
-          flexShrink: 0
+          flexShrink: 0,
+          "--dshp-hover": btnHover,
+          "--dshp-active": btnActive
         }
       },
         h(PluginIcon),
@@ -1949,6 +2135,32 @@ window.__ModuleLoader__.load({
       var newer = hasNew[0], setNewer = hasNew[1];
       var rm = useState(false);
       var showRestartModal = rm[0], setShowRestartModal = rm[1];
+      // Same dark-theme awareness as the sidebar entry: the settings section
+      // renders on the shell's own surface, so keep the foreground readable
+      // when that surface is dark.
+      var dt = useState(darkThemeActive());
+      var dark = dt[0], setDark = dt[1];
+
+      useEffect(function () {
+        function update() { setDark(darkThemeActive()); }
+        update();
+        var mo = null;
+        try {
+          if (document.body && window.MutationObserver) {
+            mo = new MutationObserver(update);
+            mo.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "class", "style"] });
+          }
+        } catch (e) {}
+        var mq = null;
+        try { mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null; } catch (e) {}
+        if (mq && mq.addEventListener) mq.addEventListener("change", update);
+        window.addEventListener(EVT, update);
+        return function () {
+          if (mo) mo.disconnect();
+          if (mq && mq.removeEventListener) mq.removeEventListener("change", update);
+          window.removeEventListener(EVT, update);
+        };
+      }, []);
 
       useEffect(function () {
         var dead = false;
@@ -2069,7 +2281,7 @@ window.__ModuleLoader__.load({
 
       function toggleRow(label, on, set) {
         return h("label", {
-          style: { display: "flex", alignItems: "center", gap: 8, margin: "10px 0", cursor: "pointer", color: FG }
+          style: { display: "flex", alignItems: "center", gap: 8, margin: "10px 0", cursor: "pointer", color: dark ? "#f3f4f6" : FG }
         },
           h("input", {
             type: "checkbox",
@@ -2083,22 +2295,22 @@ window.__ModuleLoader__.load({
       return h("div", {
         style: {
           padding: "8px 4px 16px",
-          color: FG,
+          color: dark ? "#f3f4f6" : FG,
           fontSize: 13,
           lineHeight: "20px",
           maxWidth: "100%",
           boxSizing: "border-box"
         }
       },
-        h("div", { style: { fontSize: 16, fontWeight: 600, marginBottom: 4, color: FG } }, "插件库"),
+        h("div", { style: { fontSize: 16, fontWeight: 600, marginBottom: 4, color: dark ? "#f3f4f6" : FG } }, "插件库"),
         h(RestartModal, {
           show: showRestartModal,
           onLater: function () { setShowRestartModal(false); },
           onRestart: function () { setShowRestartModal(false); restartNow(); }
         }),
-        h("div", { style: { color: MUTED, marginBottom: 12 } }, "管理侧边栏展示和自动更新"),
+        h("div", { style: { color: dark ? "#9ca3af" : MUTED, marginBottom: 12 } }, "管理侧边栏展示和自动更新"),
         toggleRow("在侧边栏显示插件库", prefs.showSidebar !== false, function (v) { patchPrefs({ showSidebar: v }); }),
-        h("div", { style: { margin: "10px 0 6px", color: FG } }, "封面大小"),
+        h("div", { style: { margin: "10px 0 6px", color: dark ? "#f3f4f6" : FG } }, "封面大小"),
         h("div", { style: { marginBottom: 10 } },
           h("button", {
             type: "button",

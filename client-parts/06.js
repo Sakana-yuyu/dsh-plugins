@@ -1,3 +1,125 @@
+      var en = p.description_en || "";
+      return h("div", {
+        onClick: function (e) {
+          var t = e && e.target;
+          if (t && t.closest && t.closest("button, a, input, textarea")) return;
+          onOpenDetail();
+        },
+        style: {
+          border: "1px solid " + LINE,
+          background: BG,
+          borderRadius: 8,
+          padding: 10,
+          overflow: "hidden",
+          maxWidth: "100%",
+          boxSizing: "border-box",
+          minWidth: 0,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          cursor: "pointer"
+        }
+      },
+        cover ? h("img", {
+          src: cover,
+          alt: "",
+          style: {
+            width: "100%",
+            height: "auto",
+            maxHeight: hCover || "none",
+            aspectRatio: "2 / 1",
+            objectFit: "contain",
+            objectPosition: "center top",
+            background: "rgba(0,0,0,0.06)",
+            borderRadius: 6,
+            marginBottom: 8,
+            display: "block"
+          }
+        }) : null,
+        h("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } },
+          h("span", { style: { fontWeight: 600, fontSize: 14, color: FG } }, p.name || full),
+          installed ? h("span", {
+            style: {
+              fontSize: 11,
+              padding: "1px 6px",
+              borderRadius: 999,
+              border: "1px solid " + (p.warning ? ERR : OK),
+              color: p.warning ? ERR : OK,
+              background: BG
+            }
+          }, p.warning ? "无法加载" : "已安装") : null,
+          (hasUpdate || p.newer) ? h("span", {
+            style: {
+              fontSize: 11,
+              padding: "1px 6px",
+              borderRadius: 999,
+              border: "1px solid " + BRAND,
+              color: BRAND,
+              background: BG
+            }
+          }, "有更新") : null,
+          p.official ? h("span", {
+            style: {
+              fontSize: 11,
+              padding: "1px 6px",
+              borderRadius: 999,
+              border: "1px solid " + BRAND,
+              color: BRAND,
+              background: BG
+            }
+          }, "官方") : null,
+          (p.install_method === "npm" || p.npm_name) ? h("span", {
+            style: { fontSize: 11, padding: "1px 6px", borderRadius: 999, border: "1px solid " + BRAND, color: BRAND, background: BG }
+          }, "npm") : null,
+          h("span", { style: { color: MUTED, fontSize: 12 } }, "stars " + (p.stars || 0)),
+          (!enabled && toggleable) ? h("span", {
+            style: {
+              fontSize: 11,
+              padding: "1px 6px",
+              borderRadius: 999,
+              border: "1px solid " + MUTED,
+              color: MUTED,
+              background: BG
+            }
+          }, "已禁用") : null
+        ),
+        h("div", { style: { color: MUTED, fontSize: 12, marginTop: 4 } },
+          (author ? author + " · " : "") + (p.category_zh || p.category || "")
+        ),
+        (p.current || p.latest) ? h("div", { style: { color: MUTED, fontSize: 12, marginTop: 2 } },
+          "当前 " + (p.current || "-") + (p.latest ? " → 最新 " + p.latest : "")
+        ) : null,
+        (p.install_method === "npm" || p.npm_name) ? h("div", { style: { color: MUTED, fontSize: 11, marginTop: 2 } }, "请用 npm 包名安装，不要用 github:") : null,
+        linkOnly ? h("div", { style: { color: MUTED, fontSize: 11, marginTop: 2 } }, "这是目录索引，不能当插件安装") : null,
+        p.status === "error" ? h("div", { style: { color: MUTED, fontSize: 11, marginTop: 2 } }, "检查失败") : null,
+        h("div", {
+          style: {
+            marginTop: 6,
+            color: FG,
+            fontSize: 12,
+            lineHeight: "18px",
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            minHeight: 54,
+            height: 54
+          }
+        }, p.description || zh || en || ""),
+        h("button", {
+          type: "button",
+          title: cmd ? "点击复制安装命令" : "",
+          onClick: cmd ? onCopy : undefined,
+          style: Object.assign({}, cmdStyle(), { visibility: cmd ? "visible" : "hidden" })
+        }, copied ? "已复制" : (cmd || " ")),
+        h("div", { style: { marginTop: "auto", paddingTop: 10, display: "flex", gap: 8, flexWrap: "wrap" } },
+          (!installed && !linkOnly) ? h("button", {
+            type: "button",
+            disabled: waiting || !id,
+            onClick: function () { if (install) install(id, p); },
+            style: btnStyle(waiting || !id, true)
+          }, waiting ? "安装中…" : "安装") : null,
+          (installed && hasUpdate && onUpdate) ? h("button", {
             type: "button",
             disabled: busyUp || !id,
             onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onUpdate(id); },
@@ -10,6 +132,13 @@
             onClick: function () { if (uninstall) uninstall(id); },
             style: btnStyle(busyUn || isSelf || !id || p.removable === false, false, !isSelf)
           }, busyUn ? "卸载中…" : "卸载") : null,
+          (installed && toggleable) ? h("button", {
+            type: "button",
+            disabled: busyUn,
+            title: enabled ? "禁用后重启不再加载此插件" : "启用此插件",
+            onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (toggle) toggle(p); },
+            style: btnStyle(busyUn, !enabled)
+          }, enabled ? "禁用" : "启用") : null,
           h("button", {
             type: "button",
             onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); onOpenDetail(); },
@@ -75,144 +204,3 @@
       var un = useState(null);
       var updateNote = un[0], setUpdateNote = un[1];
       var vw = useState("discover");
-      var view = vw[0], setView = vw[1];
-      var inst = useState([]);
-      var installed = inst[0], setInstalled = inst[1];
-      var rn = useState(readRestartNeeded());
-      var restartNeeded = rn[0], setRestartNeeded = rn[1];
-      var bu = useState({});
-      var busyUn = bu[0], setBusyUn = bu[1];
-      var bup = useState({});
-      var busyUp = bup[0], setBusyUp = bup[1];
-      var nc = useState(0);
-      var newerCount = nc[0], setNewerCount = nc[1];
-      var rm = useState(false);
-      var showRestartModal = rm[0], setShowRestartModal = rm[1];
-      var ck = useState(false);
-      var checking = ck[0], setChecking = ck[1];
-      var listRef = useRef(null);
-      var checkedInstalled = useRef(false);
-
-      function markRestart() {
-        writeRestartNeeded(true);
-        setRestartNeeded(true);
-      }
-      function refreshInstalled() {
-        fetchInstalled(function (err, list) {
-          if (list) setInstalled(list);
-        });
-      }
-      function applyUpdateData(data, info) {
-        if (info) {
-          setUpdateInfo(info);
-          setNewerCount(info.newerCount || 0);
-        } else if (data && data.self) {
-          setUpdateInfo({
-            ok: !!data.ok,
-            newer: !!(data.self && data.self.newer),
-            current: (data.self && data.self.current) || "",
-            latest: (data.self && data.self.latest) || "",
-            latestSha: (data.self && data.self.latestSha) || "",
-            status: (data.self && data.self.status) || "",
-            newerCount: data.newerCount || 0,
-            installed: data.installed || []
-          });
-          setNewerCount(data.newerCount || 0);
-        }
-        var rows = (data && data.installed) || (info && info.installed) || [];
-        if (rows && rows.length) {
-          setInstalled(function (cur) {
-            var byFull = {};
-            for (var i = 0; i < rows.length; i++) {
-              var k = itemKey(rows[i]);
-              if (k) byFull[k] = rows[i];
-              if (rows[i] && rows[i].full_name) byFull[rows[i].full_name] = rows[i];
-            }
-            if (!cur || !cur.length) return rows;
-            var seen = {};
-            var merged = cur.map(function (row) {
-              var k = itemKey(row);
-              var u = byFull[k] || byFull[row.full_name];
-              if (k) seen[k] = true;
-              if (row.full_name) seen[row.full_name] = true;
-              return u ? Object.assign({}, row, u) : row;
-            });
-            for (var j = 0; j < rows.length; j++) {
-              var add = rows[j];
-              var ak = itemKey(add);
-              if (add && ak && !seen[ak] && !seen[add.full_name]) merged.push(add);
-            }
-            return merged;
-          });
-        }
-      }
-      function refreshUpdates(cb) {
-        setChecking(true);
-        fetchUpdateInfo(function (err, info, data) {
-          setChecking(false);
-          if (err) {
-            setUpdateInfo({ ok: false, status: "error", newer: false, newerCount: 0, installed: [] });
-            if (cb) cb(err);
-            return;
-          }
-          applyUpdateData(data, info);
-          if (cb) cb(null, info, data);
-        });
-      }
-
-      useEffect(function () {
-        if (listRef.current) listRef.current.scrollTop = 0;
-      }, [page, query, scope, cat, view]);
-
-      useEffect(function () {
-        var dead = false;
-        fetchUpdateInfo(function (err, info, data) {
-          if (dead) return;
-          if (err) setUpdateInfo({ ok: false, status: "error", newer: false, newerCount: 0, installed: [] });
-          else if (info) applyUpdateData(data, info);
-        });
-        return function () { dead = true; };
-      }, []);
-
-      useEffect(function () {
-        if (view !== "installed") return;
-        if (checkedInstalled.current) return;
-        checkedInstalled.current = true;
-        refreshUpdates();
-      }, [view]);
-
-      useEffect(function () {
-        var dead = false;
-        setLoading(true);
-        fetch("/api/dsh-plugins/catalog")
-          .then(function (r) { return r.json(); })
-          .then(function (data) {
-            if (dead) return;
-            if (!data || !data.ok) {
-              setError((data && data.error) || "目录加载失败");
-              setPlugins([]);
-            } else {
-              setError("");
-              setPlugins(data.plugins || []);
-            }
-          })
-          .catch(function (e) {
-            if (!dead) setError(String((e && e.message) || e || "目录加载失败"));
-          })
-          .then(function () { if (!dead) setLoading(false); });
-        return function () { dead = true; };
-      }, []);
-
-      var onSearch = useCallback(function (e) {
-        if (e && e.preventDefault) e.preventDefault();
-        setQuery((draft || "").trim().toLowerCase());
-        setPage(1);
-      }, [draft]);
-
-      var install = useCallback(function (full, item) {
-        if (!full || busy[full]) return;
-        setBusy(function (b) {
-          var n = {};
-          for (var k in b) n[k] = b[k];
-          n[full] = true;
-          return n;

@@ -1,8 +1,87 @@
+        inv("restart_app").catch(function () {
+          fetch("/api/dsh-plugins/restart", { method: "POST" }).catch(function () {});
+        });
+        return;
+      }
+      fetch("/api/dsh-plugins/restart", { method: "POST" }).catch(function () {});
+      setTimeout(function () { location.reload(); }, 1200);
+    }
+    function readRestartNeeded() {
+      try { return localStorage.getItem(RESTART_LS) === "1"; } catch (e) { return false; }
+    }
+    function writeRestartNeeded(on) {
+      try {
+        if (on) localStorage.setItem(RESTART_LS, "1");
+        else localStorage.removeItem(RESTART_LS);
+      } catch (e) {}
+    }
+    function fetchInstalled(cb) {
+      fetch("/api/dsh-plugins/installed?check=1")
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.ok && Array.isArray(data.installed)) {
+            if (cb) cb(null, data.installed, data);
+            return;
+          }
+          fetch("/api/dsh-plugins/updates")
+            .then(function (r2) { return r2.json(); })
+            .then(function (d2) { if (cb) cb(null, (d2 && d2.installed) || [], d2); })
+            .catch(function (e) { if (cb) cb(e, []); });
+        })
+        .catch(function () {
+          fetch("/api/dsh-plugins/updates")
+            .then(function (r2) { return r2.json(); })
+            .then(function (d2) { if (cb) cb(null, (d2 && d2.installed) || [], d2); })
+            .catch(function (e) { if (cb) cb(e, []); });
+        });
+    }
+    function attachUpdateFields(c, row) {
+      if (!c || !row) return c;
+      c.newer = !!row.newer;
+      c.current = row.current || row.version || "";
+      c.latest = row.latest || "";
+      c.currentSha = row.currentSha || "";
+      c.latestSha = row.latestSha || "";
+      c.status = row.status || "";
+      c.version = row.version || c.current || "";
+      return c;
+    }
+    function itemKey(row) {
+      if (!row) return "";
+      return row.name || row.npm_name || row.full_name || row.spec || "";
+    }
+    function cardFromInstalled(row) {
+
+      if (row && row.catalog) {
+        var c = {};
+        for (var k in row.catalog) c[k] = row.catalog[k];
+        c.installed = true;
+        if (row.warning) c.warning = row.warning;
+        if (row.issues_url) c.issues_url = row.issues_url;
+        if (row.usable === false) c.usable = false;
+        if (row.self) c.self = true;
+        return attachUpdateFields(c, row);
+      }
+      var full = (row && row.full_name) || "";
+      var pkgName = (row && row.name) || "";
+      var slash = full.indexOf("/");
+      return attachUpdateFields({
+        name: pkgName || full,
+        full_name: full,
+        npm_name: (row && row.npm_name) || "",
+        install_method: (row && row.install_method) || (row && row.source) || "",
+        source: (row && row.source) || "",
+        removable: row && row.removable !== false,
+        description: (row && row.spec) || "",
+        install: "",
         author: slash > 0 ? full.slice(0, slash) : "",
         warning: (row && row.warning) || "",
         issues_url: (row && row.issues_url) || (full ? ("https://github.com/" + full + "/issues") : ""),
         usable: row ? row.usable !== false : true,
-        self: !!(row && row.self)
+        self: !!(row && row.self),
+        entryId: (row && row.entryId) || "",
+        enabled: row ? row.enabled !== false : true,
+        toggleable: !!(row && row.toggleable)
       }, row);
     }
 
@@ -151,85 +230,3 @@
       if (!props.show) return null;
       return h("div", {
         style: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 10,
-          padding: "12px 14px",
-          marginBottom: 12,
-          borderRadius: 8,
-          border: "1px solid " + BRAND,
-          background: BG
-        }
-      },
-        h("div", { style: { minWidth: 0 } },
-          h("div", { style: { fontWeight: 700, color: BRAND, fontSize: 14 } }, "需要重启"),
-          h("div", { style: { fontSize: 12, color: FG, marginTop: 4, lineHeight: "18px" } },
-            "请完全退出 dsh-desktop 再打开，刚安装或卸载的插件才会生效。"
-          )
-        ),
-        h("button", {
-          type: "button",
-          onClick: props.onDismiss,
-          style: btnStyle(false, true)
-        }, "知道了")
-      );
-    }
-
-    function RestartModal(props) {
-      if (!props.show) return null;
-      var node = h("div", {
-        style: {
-          position: "fixed",
-          inset: 0,
-          zIndex: 10001,
-          background: "rgba(0,0,0,0.48)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          boxSizing: "border-box"
-        }
-      },
-        h("div", {
-          onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
-          style: {
-            width: "min(420px, 92vw)",
-            background: "#ffffff",
-            color: "#111827",
-            borderRadius: 12,
-            border: "1px solid #e5e7eb",
-            padding: "18px 20px 20px",
-            boxSizing: "border-box",
-            boxShadow: "0 16px 40px rgba(0,0,0,0.22)"
-          }
-        },
-          h("div", { style: { fontSize: 18, fontWeight: 650, color: "#111827", marginBottom: 10 } }, "更新完成"),
-          h("div", { style: { fontSize: 13, lineHeight: "22px", color: "#374151", marginBottom: 16 } },
-            "插件已更新。要现在重启应用吗？不重启的话，新版本要等下次启动才生效。"
-          ),
-          h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" } },
-            h("button", { type: "button", onClick: props.onLater, style: {
-              padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db",
-              background: "#fff", color: "#111827", fontWeight: 600, cursor: "pointer"
-            } }, "稍后"),
-            h("button", { type: "button", onClick: props.onRestart, style: {
-              padding: "8px 14px", borderRadius: 8, border: "1px solid #2563eb",
-              background: "#2563eb", color: "#ffffff", fontWeight: 650, cursor: "pointer"
-            } }, "立即重启")
-          )
-        )
-      );
-      return overlay(node);
-    }
-
-    // Two-column card grid. Injected once at apply time so both the overlay
-    // store page and the conversation.view tab get the layout.
-    function injectGridCss() {
-      if (typeof document === "undefined") return;
-      var id = "dsh-plugins-grid-css";
-      if (document.getElementById(id)) return;
-      var style = document.createElement("style");
-      style.id = id;
-      style.textContent = [
-        // Equal-size card grid: auto-fill creates as many 300px columns as the

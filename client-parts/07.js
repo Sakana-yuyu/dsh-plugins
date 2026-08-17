@@ -1,3 +1,144 @@
+      var view = vw[0], setView = vw[1];
+      var inst = useState([]);
+      var installed = inst[0], setInstalled = inst[1];
+      var rn = useState(readRestartNeeded());
+      var restartNeeded = rn[0], setRestartNeeded = rn[1];
+      var bu = useState({});
+      var busyUn = bu[0], setBusyUn = bu[1];
+      var bup = useState({});
+      var busyUp = bup[0], setBusyUp = bup[1];
+      var nc = useState(0);
+      var newerCount = nc[0], setNewerCount = nc[1];
+      var rm = useState(false);
+      var showRestartModal = rm[0], setShowRestartModal = rm[1];
+      var ck = useState(false);
+      var checking = ck[0], setChecking = ck[1];
+      var listRef = useRef(null);
+      var checkedInstalled = useRef(false);
+
+      function markRestart() {
+        writeRestartNeeded(true);
+        setRestartNeeded(true);
+      }
+      function refreshInstalled() {
+        fetchInstalled(function (err, list) {
+          if (list) setInstalled(list);
+        });
+      }
+      function applyUpdateData(data, info) {
+        if (info) {
+          setUpdateInfo(info);
+          setNewerCount(info.newerCount || 0);
+        } else if (data && data.self) {
+          setUpdateInfo({
+            ok: !!data.ok,
+            newer: !!(data.self && data.self.newer),
+            current: (data.self && data.self.current) || "",
+            latest: (data.self && data.self.latest) || "",
+            latestSha: (data.self && data.self.latestSha) || "",
+            status: (data.self && data.self.status) || "",
+            newerCount: data.newerCount || 0,
+            installed: data.installed || []
+          });
+          setNewerCount(data.newerCount || 0);
+        }
+        var rows = (data && data.installed) || (info && info.installed) || [];
+        if (rows && rows.length) {
+          setInstalled(function (cur) {
+            var byFull = {};
+            for (var i = 0; i < rows.length; i++) {
+              var k = itemKey(rows[i]);
+              if (k) byFull[k] = rows[i];
+              if (rows[i] && rows[i].full_name) byFull[rows[i].full_name] = rows[i];
+            }
+            if (!cur || !cur.length) return rows;
+            var seen = {};
+            var merged = cur.map(function (row) {
+              var k = itemKey(row);
+              var u = byFull[k] || byFull[row.full_name];
+              if (k) seen[k] = true;
+              if (row.full_name) seen[row.full_name] = true;
+              return u ? Object.assign({}, row, u) : row;
+            });
+            for (var j = 0; j < rows.length; j++) {
+              var add = rows[j];
+              var ak = itemKey(add);
+              if (add && ak && !seen[ak] && !seen[add.full_name]) merged.push(add);
+            }
+            return merged;
+          });
+        }
+      }
+      function refreshUpdates(cb) {
+        setChecking(true);
+        fetchUpdateInfo(function (err, info, data) {
+          setChecking(false);
+          if (err) {
+            setUpdateInfo({ ok: false, status: "error", newer: false, newerCount: 0, installed: [] });
+            if (cb) cb(err);
+            return;
+          }
+          applyUpdateData(data, info);
+          if (cb) cb(null, info, data);
+        });
+      }
+
+      useEffect(function () {
+        if (listRef.current) listRef.current.scrollTop = 0;
+      }, [page, query, scope, cat, view]);
+
+      useEffect(function () {
+        var dead = false;
+        fetchUpdateInfo(function (err, info, data) {
+          if (dead) return;
+          if (err) setUpdateInfo({ ok: false, status: "error", newer: false, newerCount: 0, installed: [] });
+          else if (info) applyUpdateData(data, info);
+        });
+        return function () { dead = true; };
+      }, []);
+
+      useEffect(function () {
+        if (view !== "installed") return;
+        if (checkedInstalled.current) return;
+        checkedInstalled.current = true;
+        refreshUpdates();
+      }, [view]);
+
+      useEffect(function () {
+        var dead = false;
+        setLoading(true);
+        fetch("/api/dsh-plugins/catalog")
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (dead) return;
+            if (!data || !data.ok) {
+              setError((data && data.error) || "目录加载失败");
+              setPlugins([]);
+            } else {
+              setError("");
+              setPlugins(data.plugins || []);
+            }
+          })
+          .catch(function (e) {
+            if (!dead) setError(String((e && e.message) || e || "目录加载失败"));
+          })
+          .then(function () { if (!dead) setLoading(false); });
+        return function () { dead = true; };
+      }, []);
+
+      var onSearch = useCallback(function (e) {
+        if (e && e.preventDefault) e.preventDefault();
+        setQuery((draft || "").trim().toLowerCase());
+        setPage(1);
+      }, [draft]);
+
+      var install = useCallback(function (full, item) {
+        if (!full || busy[full]) return;
+        setBusy(function (b) {
+          var n = {};
+          for (var k in b) n[k] = b[k];
+          n[full] = true;
+          return n;
         });
         setNotes(function (m) {
           var n = {};
@@ -81,143 +222,3 @@
             setNotes(function (m) {
               var n = {};
               for (var k in m) n[k] = m[k];
-              n[full] = { ok: false, text: String((e && e.message) || e || "卸载失败") };
-              return n;
-            });
-          })
-          .then(function () {
-            setBusyUn(function (b) {
-              var n = {};
-              for (var k in b) if (k !== full) n[k] = b[k];
-              return n;
-            });
-          });
-      }, [busyUn]);
-
-      function afterUpdateOk() {
-        markRestart();
-        setShowRestartModal(true);
-        refreshUpdates();
-      }
-      function updateOne(full) {
-        if (!full || busyUp[full]) return;
-        setBusyUp(function (b) {
-          var n = {};
-          for (var k in b) n[k] = b[k];
-          n[full] = true;
-          return n;
-        });
-        runUpdate(full, function (err, data) {
-          setBusyUp(function (b) {
-            var n = {};
-            for (var k in b) if (k !== full) n[k] = b[k];
-            return n;
-          });
-          if (err || !data || !data.ok) {
-            setNotes(function (m) {
-              var n = {};
-              for (var k in m) n[k] = m[k];
-              n[full] = { ok: false, text: String((err && err.message) || (data && (data.message || data.error)) || "更新失败") };
-              return n;
-            });
-            return;
-          }
-          setNotes(function (m) {
-            var n = {};
-            for (var k in m) n[k] = m[k];
-            n[full] = { ok: true, text: "已更新 " + full };
-            return n;
-          });
-          afterUpdateOk();
-        });
-      }
-      function updateAllNow() {
-        if (updating || !newerCount) return;
-        setUpdating(true);
-        runUpdate("all", function (err, data) {
-          setUpdating(false);
-          if (err || !data || !data.ok) {
-            setUpdateNote({ ok: false, text: String((err && err.message) || (data && (data.message || data.error)) || "更新失败") });
-            return;
-          }
-          setUpdateNote(null);
-          afterUpdateOk();
-        });
-      }
-
-      var installedMap = {};
-      for (var im = 0; im < installed.length; im++) {
-        var ik = itemKey(installed[im]);
-        if (ik) installedMap[ik] = installed[im];
-        if (installed[im] && installed[im].full_name) installedMap[installed[im].full_name] = installed[im];
-        if (installed[im] && installed[im].npm_name) installedMap[installed[im].npm_name] = installed[im];
-      }
-
-      var matched = [];
-      if (view === "installed") {
-        for (var i = 0; i < installed.length; i++) {
-          var card = cardFromInstalled(installed[i]);
-          var q = query || "";
-          if (q) {
-            var blob = [card.name, card.full_name, card.author, card.npm_name].join(" ").toLowerCase();
-            if (blob.indexOf(q) < 0) continue;
-          }
-          matched.push(card);
-        }
-      } else {
-        for (var i = 0; i < plugins.length; i++) {
-          if (matchItem(plugins[i], query, scope, cat)) matched.push(plugins[i]);
-        }
-      }
-      var pageSize = 12;
-      var pages = Math.max(1, Math.ceil(matched.length / pageSize) || 1);
-      var cur = page;
-      if (cur > pages) cur = pages;
-      if (cur < 1) cur = 1;
-      var shown = matched.slice((cur - 1) * pageSize, cur * pageSize);
-
-      var chips = [];
-      for (var si = 0; si < SCOPES.length; si++) {
-        (function (item) {
-          chips.push(h("button", {
-            key: "s-" + item.id,
-            type: "button",
-            onClick: function () { setScope(item.id); setPage(1); },
-            style: chipStyle(scope === item.id)
-          }, item.zh));
-        })(SCOPES[si]);
-      }
-      var catChips = [];
-      for (var ci = 0; ci < CATS.length; ci++) {
-        (function (item) {
-          catChips.push(h("button", {
-            key: "c-" + item.id,
-            type: "button",
-            onClick: function () { setCat(item.id); setPage(1); },
-            style: chipStyle(cat === item.id)
-          }, item.zh));
-        })(CATS[ci]);
-      }
-      var cards = [];
-      for (var j = 0; j < shown.length; j++) {
-        (function (item) {
-          var full = item.full_name || "";
-          var id = itemKey(item) || full;
-          var row = installedMap[id] || installedMap[full] || installedMap[item.npm_name] || installedMap[item.name];
-          var cardItem = item;
-          if (row) {
-            cardItem = {};
-            for (var ck in item) cardItem[ck] = item[ck];
-            if (row.warning && !item.warning) cardItem.warning = row.warning;
-            if (row.issues_url) cardItem.issues_url = row.issues_url;
-            if (row.usable === false) cardItem.usable = false;
-            if (row.newer) cardItem.newer = true;
-            if (row.current || row.version) cardItem.current = row.current || row.version;
-            if (row.latest) cardItem.latest = row.latest;
-            if (row.status) cardItem.status = row.status;
-          }
-          cards.push(h(PluginCard, {
-            key: id || full || String(item.rank) + item.name,
-            p: cardItem,
-            install: install,
-            uninstall: uninstall,

@@ -257,8 +257,14 @@ function resolveUninstallItem(target) {
   const t = String(target || '').trim()
   if (!t) return null
   const installed = collectInstalledGithub()
+  // Exact dependency key / package name match (e.g. '@dsh-external/dsh-ads').
   let hit = installed.find(x => x.name === t)
   if (hit) return hit
+  // Direct full_name match (owner/repo without a github: prefix).
+  hit = installed.find(x => x.full_name === t)
+  if (hit) return hit
+  // github: spec forms (full spec, spec with path, or full_name derived from
+  // the spec). A bare short name with no slash never reaches this branch.
   const raw = t.startsWith('github:') ? t : (t.includes('/') ? ('github:' + t) : '')
   if (raw) {
     const parsed = parseGithubSpec(raw)
@@ -271,6 +277,16 @@ function resolveUninstallItem(target) {
     hit = installed.find(x => x.full_name === parsed.full_name)
     if (hit) return hit
   }
+  // Catalog short-name fallback: match the repo basename of full_name or the
+  // package name (e.g. 'dsh-ads' resolves '@dsh-external/dsh-ads', which pnpm
+  // aliased from github:Nagi-ovo/dsh-ads). Exact matches above always win.
+  const short = t.toLowerCase()
+  const basename = (value) => String(value || '').split('/').pop() || ''
+  hit = installed.find(x =>
+    (x.full_name && basename(x.full_name).toLowerCase() === short) ||
+    (x.name && basename(x.name).toLowerCase() === short)
+  )
+  if (hit) return hit
   return null
 }
 
@@ -389,6 +405,109 @@ function resolveDshHome() {
     if (existsSync(dot)) return dot
   }
   return process.cwd()
+}
+
+/**
+ * The web profile's user-layer patch file. Disabling a plugin = adding a
+ * `- id: <entryId>\n  disabled: true` patch here, exactly what the Loader
+ * reads at boot. The file starts as a comment header plus `[]`; we preserve
+ * every other entry (user config patches, insert lists) and only manage the
+ * id/disabled blocks we own.
+ */
+function profilePatchPath(profile) {
+  const name = String(profile || 'web').replace(/[^A-Za-z0-9_-]/g, '') || 'web'
+  return join(resolveDshHome(), 'profiles', name, 'cordis.patch.yml')
+}
+
+/** Split a patch file into header comments, top-level blocks, and bare lines. */
+function parsePatchFile(text) {
+  const lines = String(text || '').split(/\r?\n/)
+  const header = []
+  const bare = []
+  const blocks = []
+  let cur = null
+  for (const line of lines) {
+    if (/^\s*#/.test(line)) {
+      header.push(line)
+      continue
+    }
+    if (/^-\s/.test(line)) {
+      if (cur) blocks.push(cur)
+      cur = { id: null, lines: [line] }
+      const m = /^-\s+id:\s*['"]?([^'",\s]+)/.exec(line)
+      if (m) cur.id = m[1]
+      continue
+    }
+    if (cur) {
+      cur.lines.push(line)
+      if (cur.id === null) {
+        const m = /^\s+id:\s*['"]?([^'",\s]+)/.exec(line)
+        if (m) cur.id = m[1]
+      }
+      continue
+    }
+    bare.push(line)
+  }
+  if (cur) blocks.push(cur)
+  return { header, bare, blocks }
+}
+
+/** IDs currently disabled in the profile's user patch layer. */
+function readDisabledPluginIds(profile) {
+  const path = profilePatchPath(profile)
+  if (!existsSync(path)) return new Set()
+  let text = ''
+  try { text = readFileSync(path, 'utf8') } catch { return new Set() }
+  const { blocks } = parsePatchFile(text)
+  const ids = new Set()
+  for (const block of blocks) {
+    if (block.id && /^\s+disabled:\s*true/.test(block.lines.slice(1).join('\n'))) ids.add(block.id)
+  }
+  return ids
+}
+
+/**
+ * Rewrite the profile patch file so exactly `ids` are disabled. Every
+ * non-managed block and header comment is preserved verbatim; managed
+ * disabled blocks are replaced in one group after the other blocks.
+ */
+function writeDisabledPluginIds(ids, profile) {
+  const path = profilePatchPath(profile)
+  const dir = dirname(path)
+  if (!existsSync(dir)) return
+  const text = existsSync(path) ? readFileSync(path, 'utf8') : ''
+  const { header, bare, blocks } = parsePatchFile(text)
+  // A managed block is one carrying an id AND `disabled: true`; everything
+  // else (config patches, insert lists) belongs to the user and is kept.
+  // Rebuild the disabled set from scratch: drop every managed block, then
+  // re-emit exactly the ids we were asked for.
+  const isManaged = (block) => block.id !== null && /^\s+disabled:\s*true/.test(block.lines.slice(1).join('\n'))
+  const keep = blocks.filter(block => !isManaged(block))
+  const managed = [...ids].sort()
+  const body = []
+  for (const block of keep) body.push(block.lines.join('\n'))
+  for (const id of managed) body.push(`- id: ${id}\n  disabled: true`)
+  const parts = []
+  if (header.length) parts.push(header.join('\n'))
+  for (const line of bare) {
+    if (line.trim() === '' || line.trim() === '[]') continue
+    parts.push(line)
+  }
+  if (body.length) parts.push(body.join('\n'))
+  writeFileSync(path, (parts.length ? parts.join('\n') : '[]') + '\n')
+}
+
+/** The Loader entry id for an installed plugin, from its bundle patch. */
+function pluginEntryId(root, name) {
+  try {
+    const pkg = readNmPkg(root, name)
+    if (!pkg || !pkg.dsh || !pkg.dsh.bundle || !pkg.dsh.bundle.patch) return ''
+    const patchText = readFileSync(join(root, 'node_modules', name, pkg.dsh.bundle.patch), 'utf8')
+    const m = /^\s*-\s*insert:[\s\S]*?id:\s*['"]?([^'",\s]+)/.exec(patchText)
+    return m ? m[1] : ''
+  } catch {
+    return ''
+  }
 }
 
 function prefsPath() {
@@ -568,6 +687,9 @@ function makeInstalledRow(root, name, spec, source, extra) {
     usable: health.ok, issues_url: health.issues_url,
     removable: extra && extra.removable === false ? false : true,
     parent: (extra && extra.parent) || '',
+    // Loader entry id from the bundle patch ('' for nested/library rows);
+    // used by the enable/disable toggle. Non-bundle rows are not toggleable.
+    entryId: (extra && extra.entryId) || '',
   }
 }
 
@@ -575,10 +697,22 @@ function collectInstalledPlugins(catalog) {
   const cat = Array.isArray(catalog) ? catalog : (cache || [])
   const out = []
   const seen = new Set()
+  const disabledIds = readDisabledPluginIds('web')
   function remember(row) {
     const key = row.name || row.spec || (row.full_name + '#' + (row.path || ''))
     if (!key || seen.has(key)) return
     seen.add(key)
+    // Enabled state: a bundle row with a loader entry id is disabled exactly
+    // when the profile user patch disables that id. Rows without an entry id
+    // (nested libraries, npm-only packages) are always enabled and not
+    // toggleable.
+    if (row.entryId) {
+      row.enabled = !disabledIds.has(row.entryId)
+      row.toggleable = row.removable !== false && row.full_name !== SELF_FULL
+    } else {
+      row.enabled = true
+      row.toggleable = false
+    }
     out.push(row)
   }
   for (const p of webPackageCandidates()) {
@@ -589,6 +723,7 @@ function collectInstalledPlugins(catalog) {
     } catch { continue }
     if (!pkg || typeof pkg !== 'object') continue
     const root = dirname(p)
+    const disabledIds = readDisabledPluginIds('web')
     const directNames = []
     for (const bag of [pkg.dependencies, pkg.devDependencies]) {
       if (!bag || typeof bag !== 'object') continue
@@ -597,7 +732,10 @@ function collectInstalledPlugins(catalog) {
         const s = String(spec || '')
         const nmPkg = readNmPkg(root, depName)
         if (!shouldKeepDep(depName, s, nmPkg, cat)) continue
-        remember(makeInstalledRow(root, depName, s, classifySpec(s) || 'n'+'pm', { removable: true }))
+        remember(makeInstalledRow(root, depName, s, classifySpec(s) || 'n'+'pm', {
+          removable: true,
+          entryId: pluginEntryId(root, depName),
+        }))
         directNames.push(depName)
       }
     }
@@ -607,7 +745,10 @@ function collectInstalledPlugins(catalog) {
       if (!depName || isOfficialHost(depName) || seen.has(depName)) continue
       const nmPkg = readNmPkg(root, depName)
       if (!shouldKeepDep(depName, depName, nmPkg, cat) && !hasDshField(nmPkg) && !/dsh/i.test(depName)) continue
-      remember(makeInstalledRow(root, depName, depName, 'bundle', { removable: directNames.includes(depName) }))
+      remember(makeInstalledRow(root, depName, depName, 'bundle', {
+        removable: directNames.includes(depName),
+        entryId: pluginEntryId(root, depName),
+      }))
     }
     const nmRoot = join(root, 'node_modules')
     for (const depName of listTopLevelNodeModules(nmRoot)) {
@@ -615,7 +756,11 @@ function collectInstalledPlugins(catalog) {
       const nmPkg = readNmPkg(root, depName)
       if (!hasDshField(nmPkg)) continue
       const parent = findParentDep(directNames, root, depName)
-      remember(makeInstalledRow(root, depName, (nmPkg && nmPkg.name) || depName, 'nested', { removable: false, parent }))
+      remember(makeInstalledRow(root, depName, (nmPkg && nmPkg.name) || depName, 'nested', {
+        removable: false,
+        parent,
+        entryId: pluginEntryId(root, depName),
+      }))
     }
     if (out.length) return out
   }
@@ -1212,6 +1357,56 @@ async function uninstallPlugin(target, profile) {
   }
 }
 
+/**
+ * Enable or disable an installed plugin. Disabling writes a
+ * `- id: <entryId> / disabled: true` patch into the profile's user layer, so
+ * the plugin's loader entry is not started at the next boot. Enabling removes
+ * that patch. The catalog itself cannot be disabled (it is the store).
+ * @param target - package name, owner/repo, or github: spec.
+ * @param enabled - the desired state.
+ * @param profile - profile name (default web).
+ * @returns result with needsRestart when the patch changed.
+ */
+function setPluginEnabled(target, enabled, profile) {
+  const item = resolveUninstallItem(target)
+  if (!item) return { ok: false, message: '未找到已安装的插件' }
+  if (item.full_name === SELF_FULL) {
+    return { ok: false, message: '不能禁用插件库本身，禁用了就进不了插件库。' }
+  }
+  profile = safeProfile(profile)
+  if (!item.entryId) {
+    return { ok: false, message: '该插件没有可切换的 loader 条目（可能是嵌套包或纯依赖）。' }
+  }
+  const ids = readDisabledPluginIds(profile)
+  const wasEnabled = !ids.has(item.entryId)
+  if (wasEnabled === !!enabled) {
+    return { ok: true, unchanged: true, message: `该插件已经是${enabled ? '启用' : '禁用'}状态。`, entryId: item.entryId, enabled: !!enabled }
+  }
+  if (enabled) ids.delete(item.entryId)
+  else ids.add(item.entryId)
+  writeDisabledPluginIds(ids, profile)
+  return {
+    ok: true,
+    unchanged: false,
+    needsRestart: true,
+    entryId: item.entryId,
+    enabled: !!enabled,
+    message: (enabled ? '已启用 ' : '已禁用 ') + (item.full_name || item.name) + '。' + RESTART_HINT,
+  }
+}
+
+/** Current enabled/disabled state for every installed row. */
+function installedToggleState() {
+  return collectInstalledGithub().map(row => ({
+    name: row.name,
+    full_name: row.full_name || '',
+    entryId: row.entryId || '',
+    enabled: row.enabled !== false,
+    toggleable: !!row.toggleable,
+    removable: row.removable !== false,
+  }))
+}
+
 const DETAIL_TTL_MS = 10 * 60 * 1000
 const detailCache = new Map()
 
@@ -1508,6 +1703,7 @@ function loadClientUi() {
 const MUTATING_PATHS = new Set([
   '/api/dsh-plugins/install',
   '/api/dsh-plugins/uninstall',
+  '/api/dsh-plugins/toggle',
   '/api/dsh-plugins/update',
   '/api/dsh-plugins/restart',
   '/api/dsh-plugins/open',
@@ -1786,6 +1982,29 @@ async function handleHttp(req, res) {
     return
   }
 
+  if (method === 'POST' && path === '/api/dsh-plugins/toggle') {
+    let body
+    try {
+      body = JSON.parse((await readBody(req)) || '{}')
+    } catch {
+      sendJson(res, 400, { ok: false, error: 'invalid json' })
+      return
+    }
+    const target = String((body && (body.full_name || body.name || body.spec || body.entryId)) || '').trim()
+    const enabled = !!(body && body.enabled)
+    if (!target) {
+      sendJson(res, 400, { ok: false, error: 'full_name, name, spec, or entryId required' })
+      return
+    }
+    try {
+      const result = setPluginEnabled(target, enabled, safeProfile(body && body.profile))
+      sendJson(res, result.ok ? 200 : 400, result)
+    } catch (err) {
+      sendJson(res, 500, { ok: false, message: String(err && err.message || err) })
+    }
+    return
+  }
+
 
   if (method === 'POST' && path === '/api/dsh-plugins/open') {
     let body
@@ -1888,6 +2107,11 @@ export {
   rowPkg,
   isLinkInstall,
   row,
+  setPluginEnabled,
+  readDisabledPluginIds,
+  writeDisabledPluginIds,
+  pluginEntryId,
+  installedToggleState,
 }
 
 export async function apply(ctx) {

@@ -44,6 +44,58 @@ var module = { exports: {} };
     var SELF_FULL = "Sakana-yuyu/dsh-plugins";
     var SITE = "https://sakana-yuyu.github.io/dsh-plugins/";
 
+    // Dark-theme detection for the sidebar entry. The DSH theme presenter marks
+    // dark palettes with body[data-ds-dark-theme] and html { color-scheme }, so
+    // those are the primary signals; a prefers-color-scheme query covers
+    // system-following shells, and a luminance probe over the button's real
+    // background catches skins that repaint without setting the attribute. The
+    // sidebar button lives on a transparent cell, so the probe walks up to the
+    // first opaque ancestor instead of judging the button itself.
+    function parseRgbColor(str) {
+      var m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(String(str || ""));
+      if (!m) return null;
+      return [Number(m[1]), Number(m[2]), Number(m[3])];
+    }
+    function relativeLuminance(rgb) {
+      var f = function (v) {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      };
+      return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]);
+    }
+    function sampleOpaqueBackgroundLuminance() {
+      try {
+        var node = document.querySelector(".dsh-plugins-sidebar-btn");
+        var limit = document.body || document.documentElement;
+        while (node && node !== limit) {
+          var bg = getComputedStyle(node).backgroundColor;
+          var transparent = !bg || bg === "transparent" || /rgba\(0, 0, 0, 0\)/.test(bg);
+          var rgb = parseRgbColor(bg);
+          if (!transparent && rgb) return relativeLuminance(rgb);
+          node = node.parentElement;
+        }
+      } catch (e) {}
+      return null;
+    }
+    function darkThemeActive() {
+      // The DSH presenter writes both signals for every resolved theme, so
+      // they are authoritative in both directions — never fall through to
+      // matchMedia/luminance when the shell already said "light".
+      try {
+        if (document.body && document.body.hasAttribute("data-ds-dark-theme")) return true;
+      } catch (e) {}
+      try {
+        var scheme = document.documentElement && document.documentElement.style.colorScheme;
+        if (scheme) return scheme === "dark";
+      } catch (e) {}
+      try {
+        if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) return true;
+      } catch (e) {}
+      var sampled = sampleOpaqueBackgroundLuminance();
+      if (sampled !== null) return sampled < 0.35;
+      return false;
+    }
+
     // Shared open-state for the full-screen plugin store panel. The sidebar
     // "插件" button toggles it; the shell.overlay occupant renders the panel
     // while open. The panel is fully self-contained (does not depend on
@@ -141,78 +193,13 @@ var module = { exports: {} };
         .catch(function (e) { if (cb) cb(e); });
     }
     function restartNow() {
-      fetch("/api/dsh-plugins/restart", { method: "POST" }).catch(function () {});
-      var inv = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke;
+      // Desktop shell: prefer a full app relaunch (Rust shell + Host). The
+      // previous code invoked "plugin:process|restart", which the desktop
+      // shell never registered, so it silently fell back to reloading the
+      // page while only the backend restarted — the shell window kept the
+      // stale UI. invoke("restart_app") relaunches the whole desktop process;
+      // on failure (plain web, or an older shell) fall back to the backend
+      // restart endpoint.
+      var inv = (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke)
+        || (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke);
       if (typeof inv === "function") {
-        inv("plugin:process|restart").catch(function () { return inv("plugin:process|exit", { code: 0 }); });
-      }
-      setTimeout(function () { location.reload(); }, 1200);
-    }
-    function readRestartNeeded() {
-      try { return localStorage.getItem(RESTART_LS) === "1"; } catch (e) { return false; }
-    }
-    function writeRestartNeeded(on) {
-      try {
-        if (on) localStorage.setItem(RESTART_LS, "1");
-        else localStorage.removeItem(RESTART_LS);
-      } catch (e) {}
-    }
-    function fetchInstalled(cb) {
-      fetch("/api/dsh-plugins/installed?check=1")
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data && data.ok && Array.isArray(data.installed)) {
-            if (cb) cb(null, data.installed, data);
-            return;
-          }
-          fetch("/api/dsh-plugins/updates")
-            .then(function (r2) { return r2.json(); })
-            .then(function (d2) { if (cb) cb(null, (d2 && d2.installed) || [], d2); })
-            .catch(function (e) { if (cb) cb(e, []); });
-        })
-        .catch(function () {
-          fetch("/api/dsh-plugins/updates")
-            .then(function (r2) { return r2.json(); })
-            .then(function (d2) { if (cb) cb(null, (d2 && d2.installed) || [], d2); })
-            .catch(function (e) { if (cb) cb(e, []); });
-        });
-    }
-    function attachUpdateFields(c, row) {
-      if (!c || !row) return c;
-      c.newer = !!row.newer;
-      c.current = row.current || row.version || "";
-      c.latest = row.latest || "";
-      c.currentSha = row.currentSha || "";
-      c.latestSha = row.latestSha || "";
-      c.status = row.status || "";
-      c.version = row.version || c.current || "";
-      return c;
-    }
-    function itemKey(row) {
-      if (!row) return "";
-      return row.name || row.npm_name || row.full_name || row.spec || "";
-    }
-    function cardFromInstalled(row) {
-
-      if (row && row.catalog) {
-        var c = {};
-        for (var k in row.catalog) c[k] = row.catalog[k];
-        c.installed = true;
-        if (row.warning) c.warning = row.warning;
-        if (row.issues_url) c.issues_url = row.issues_url;
-        if (row.usable === false) c.usable = false;
-        if (row.self) c.self = true;
-        return attachUpdateFields(c, row);
-      }
-      var full = (row && row.full_name) || "";
-      var pkgName = (row && row.name) || "";
-      var slash = full.indexOf("/");
-      return attachUpdateFields({
-        name: pkgName || full,
-        full_name: full,
-        npm_name: (row && row.npm_name) || "",
-        install_method: (row && row.install_method) || (row && row.source) || "",
-        source: (row && row.source) || "",
-        removable: row && row.removable !== false,
-        description: (row && row.spec) || "",
-        install: "",

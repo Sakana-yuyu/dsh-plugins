@@ -1,11 +1,101 @@
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          padding: "12px 14px",
+          marginBottom: 12,
+          borderRadius: 8,
+          border: "1px solid " + BRAND,
+          background: BG
+        }
+      },
+        h("div", { style: { minWidth: 0 } },
+          h("div", { style: { fontWeight: 700, color: BRAND, fontSize: 14 } }, "需要重启"),
+          h("div", { style: { fontSize: 12, color: FG, marginTop: 4, lineHeight: "18px" } },
+            "请完全退出 dsh-desktop 再打开，刚安装或卸载的插件才会生效。"
+          )
+        ),
+        h("button", {
+          type: "button",
+          onClick: props.onDismiss,
+          style: btnStyle(false, true)
+        }, "知道了")
+      );
+    }
+
+    function RestartModal(props) {
+      if (!props.show) return null;
+      var node = h("div", {
+        style: {
+          position: "fixed",
+          inset: 0,
+          zIndex: 10001,
+          background: "rgba(0,0,0,0.48)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          boxSizing: "border-box"
+        }
+      },
+        h("div", {
+          onClick: function (e) { if (e && e.stopPropagation) e.stopPropagation(); },
+          style: {
+            width: "min(420px, 92vw)",
+            background: "#ffffff",
+            color: "#111827",
+            borderRadius: 12,
+            border: "1px solid #e5e7eb",
+            padding: "18px 20px 20px",
+            boxSizing: "border-box",
+            boxShadow: "0 16px 40px rgba(0,0,0,0.22)"
+          }
+        },
+          h("div", { style: { fontSize: 18, fontWeight: 650, color: "#111827", marginBottom: 10 } }, "更新完成"),
+          h("div", { style: { fontSize: 13, lineHeight: "22px", color: "#374151", marginBottom: 16 } },
+            "插件已更新。要现在重启应用吗？不重启的话，新版本要等下次启动才生效。"
+          ),
+          h("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" } },
+            h("button", { type: "button", onClick: props.onLater, style: {
+              padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db",
+              background: "#fff", color: "#111827", fontWeight: 600, cursor: "pointer"
+            } }, "稍后"),
+            h("button", { type: "button", onClick: props.onRestart, style: {
+              padding: "8px 14px", borderRadius: 8, border: "1px solid #2563eb",
+              background: "#2563eb", color: "#ffffff", fontWeight: 650, cursor: "pointer"
+            } }, "立即重启")
+          )
+        )
+      );
+      return overlay(node);
+    }
+
+    // Two-column card grid. Injected once at apply time so both the overlay
+    // store page and the conversation.view tab get the layout.
+    function injectGridCss() {
+      if (typeof document === "undefined") return;
+      var id = "dsh-plugins-grid-css";
+      if (document.getElementById(id)) return;
+      var style = document.createElement("style");
+      style.id = id;
+      style.textContent = [
+        // Equal-size card grid: auto-fill creates as many 300px columns as the
         // container width allows and every column shares the remaining width
         // equally, so ALL cards are the same size (no stretched last row).
         // Maximizing the window adds columns instead of widening cards.
         '[data-dsh-plugins-catalog]{width:100%;max-width:none;flex:1 1 auto;min-width:0;align-self:stretch;box-sizing:border-box}',
         '[data-dsh-plugins-grid]{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:stretch}',
         '[data-dsh-plugins-grid]>*{min-width:0}',
-        '.dsh-plugins-sidebar-btn:hover{background:rgba(0,0,0,0.06)}',
-        '.dsh-plugins-sidebar-btn:active{background:rgba(0,0,0,0.1)}'
+        // Sidebar entry: the shell stacks footer actions in one flex row, so
+        // another plugin's footer button would crowd this one. The slot
+        // wrapper is display:contents (inline), so select its flex parent
+        // (:has) and let it wrap; this entry then owns its own full row and
+        // sits at the very bottom (order after every sibling action).
+        '.dsh-plugins-sidebar-btn{--dshp-hover:rgba(0,0,0,0.06);--dshp-active:rgba(0,0,0,0.1);order:999;flex:0 0 100%;max-width:100%;width:100%}',
+        '.dsh-plugins-sidebar-btn:hover{background:var(--dshp-hover)}',
+        '.dsh-plugins-sidebar-btn:active{background:var(--dshp-active)}',
+        'div:has(> [data-slot="sidebar.footer.action"]){flex-wrap:wrap}',
+        '.dsh-plugins-sidebar-btn+.dsh-plugins-sidebar-btn{margin-top:4px}'
       ].join("");
       document.head.appendChild(style);
     }
@@ -85,129 +175,3 @@
             || (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke);
           if (inv) return inv(cmd, args);
         } catch (e) {}
-        return null;
-      }
-      try {
-        var t = window.__TAURI__;
-        if (t && t.opener && t.opener.openUrl) { t.opener.openUrl(url); return; }
-        if (t && t.shell && t.shell.open) { t.shell.open(url); return; }
-      } catch (e) {}
-      var p1 = invokeTauri("plugin:opener|open_url", { url: url });
-      if (p1 && p1.then) {
-        p1.catch(function () {
-          var p2 = invokeTauri("plugin:shell|open", { path: url });
-          if (!(p2 && p2.then)) fallbackOpen(url);
-          else p2.catch(function () { fallbackOpen(url); });
-        });
-        return;
-      }
-      fallbackOpen(url);
-    }
-    function fallbackOpen(url) {
-      var w = null;
-      try { w = window.open(url, "_blank", "noopener,noreferrer"); } catch (e) {}
-      if (w) return;
-      fetch("/api/dsh-plugins/open", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: url })
-      }).catch(function () {});
-    }
-    function copyText(text) {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        return navigator.clipboard.writeText(text);
-      }
-      return Promise.reject(new Error("no clipboard"));
-    }
-    function excerpt(s, max) {
-      s = String(s || "").replace(/\r\n/g, "\n").trim();
-      max = max || 12000;
-      if (s.length > max) s = s.slice(0, max) + "…";
-      return s;
-    }
-    function coverH(size) {
-      return size === "medium" ? 200 : 0;
-    }
-    function readLocalUi() {
-      try {
-        var raw = localStorage.getItem(LS_KEY);
-        if (!raw) return { showSidebar: true, coverSize: "large" };
-        var o = JSON.parse(raw);
-        return {
-          showSidebar: o.showSidebar !== false,
-          coverSize: o.coverSize === "medium" ? "medium" : "large"
-        };
-      } catch (e) {
-        return { showSidebar: true, coverSize: "large" };
-      }
-    }
-    function writeLocalUi(partial) {
-      var cur = readLocalUi();
-      if (partial.showSidebar !== undefined) cur.showSidebar = !!partial.showSidebar;
-      if (partial.coverSize) cur.coverSize = partial.coverSize === "medium" ? "medium" : "large";
-      try { localStorage.setItem(LS_KEY, JSON.stringify(cur)); } catch (e) {}
-      try { window.dispatchEvent(new CustomEvent(EVT, { detail: cur })); } catch (e) {}
-      return cur;
-    }
-    function chipStyle(on) {
-      return {
-        display: "inline-block",
-        padding: "3px 10px",
-        margin: "0 6px 6px 0",
-        borderRadius: 999,
-        border: "1px solid " + (on ? BRAND : LINE),
-        background: BG,
-        color: on ? BRAND : FG,
-        cursor: "pointer",
-        fontSize: 12,
-        lineHeight: "18px"
-      };
-    }
-    function btnStyle(disabled, primary, danger) {
-      var color = disabled ? MUTED : (danger ? ERR : (primary ? BRAND : FG));
-      var border = (danger && !disabled) ? ERR : (primary && !disabled ? BRAND : LINE);
-      return {
-        padding: "6px 12px",
-        borderRadius: 6,
-        border: "1px solid " + border,
-        background: BG,
-        color: color,
-        cursor: disabled ? "not-allowed" : "pointer",
-        fontSize: 12,
-        lineHeight: "18px"
-      };
-    }
-    function inputStyle() {
-      return {
-        flex: 1,
-        minWidth: 0,
-        padding: "6px 10px",
-        borderRadius: 6,
-        border: "1px solid " + LINE,
-        background: BG,
-        color: FG,
-        fontSize: 13,
-        outline: "none"
-      };
-    }
-    function cmdStyle() {
-      return {
-        display: "block",
-        width: "100%",
-        maxWidth: "100%",
-        marginTop: 8,
-        padding: "4px 0",
-        border: "none",
-        background: "transparent",
-        color: MUTED,
-        fontSize: 11,
-        lineHeight: "16px",
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-        cursor: "pointer",
-        textAlign: "left",
-        boxSizing: "border-box"
-      };
-    }
