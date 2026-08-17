@@ -3,7 +3,13 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { collectInstalledGithub, installCmd, toUpdateSpec } from '../index.js'
+import {
+  collectInstalledGithub,
+  installCmd,
+  toUpdateSpec,
+  findCatalogHit,
+  resolveUninstallItem,
+} from '../index.js'
 
 function fakeProfile(deps, extra) {
   const dir = mkdtempSync(join(tmpdir(), 'dsh-plugins-inst-'))
@@ -93,4 +99,29 @@ test('toUpdateSpec keeps github path', () => {
 test('toUpdateSpec uses package name and skips file specs', () => {
   assert.equal(toUpdateSpec({ name: SKIN, source: 'npm', spec: '^1.0.0' }), SKIN)
   assert.equal(toUpdateSpec({ name: 'local', source: 'file', spec: 'file:../x' }), '')
+})
+
+test('placeholder index repo keeps its own identity and can be uninstalled', () => {
+  const spec = 'github:AdamPlatin123/awesome-dsh-plugins'
+  const dir = fakeProfile({ 'awesome-dsh-plugins': spec })
+  const nm = join(dir, 'profiles', 'web', 'node_modules', 'awesome-dsh-plugins')
+  mkdirSync(nm, { recursive: true })
+  writeFileSync(join(nm, 'package.json'), JSON.stringify({
+    name: 'awesome-dsh-plugins',
+    _pnpmPlaceholder: true,
+  }))
+  const catalog = [{ name: 'dsh-plugin', full_name: 'Tabbit-Browser/dsh-plugin' }]
+  withHome(dir, () => {
+    const row = collectInstalledGithub(catalog).find(x => x.name === 'awesome-dsh-plugins')
+    assert.ok(row)
+    assert.equal(row.full_name, 'AdamPlatin123/awesome-dsh-plugins')
+    assert.equal(row.placeholder, true)
+    assert.equal(findCatalogHit(catalog, row), null)
+    assert.equal(toUpdateSpec(row), '')
+    const hit = resolveUninstallItem('awesome-dsh-plugins')
+    assert.ok(hit)
+    assert.equal(hit.name, 'awesome-dsh-plugins')
+    // Catalog short name dsh-plugin must not steal this row.
+    assert.equal(resolveUninstallItem('dsh-plugin'), null)
+  })
 })

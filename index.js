@@ -76,6 +76,7 @@ function parseGithubSpec(spec) {
 
 function toUpdateSpec(item) {
   if (!item) return ''
+  if (typeof item === 'object' && item.placeholder) return ''
   if (typeof item === 'string') {
     const raw = item.trim()
     if (!raw) return ''
@@ -616,20 +617,27 @@ function findCatalogHit(catalog, row) {
   const full = String(row.full_name || '')
   const name = String(row.name || '')
   const unscoped = name.includes('/') ? name.slice(name.lastIndexOf('/') + 1) : name
-  let hit = full ? catalog.find(x => x && x.full_name === full) : null
-  if (hit) return hit
-  hit = name ? catalog.find(x => x && x.name === name) : null
-  if (hit) return hit
-  if (!name && !full) return null
-  return catalog.find(x => {
-    if (!x) return false
-    const xf = String(x.full_name || '')
-    const xn = String(x.name || '')
-    if (name && xf && (xf === name || xf.endsWith('/' + unscoped) || xf.includes(name) || name.includes(xf))) return true
-    if (full && xn && (xn === full || full.includes(xn) || xn.includes(full))) return true
-    if (name && xn && (xn === unscoped || name.endsWith('/' + xn))) return true
-    return false
-  }) || null
+  if (full) {
+    const hit = catalog.find(x => x && x.full_name === full)
+    if (hit) return hit
+  }
+  if (name) {
+    const hit = catalog.find(x => x && x.name === name)
+    if (hit) return hit
+  }
+  // Scoped alias (@dsh-external/dsh-ads) → unique catalog name / repo basename.
+  // Never use substring includes(): "awesome-dsh-plugins" contains "dsh-plugin"
+  // and used to steal Tabbit-Browser/dsh-plugin's card, breaking uninstall.
+  if (unscoped && unscoped !== name) {
+    const byName = catalog.filter(x => x && x.name === unscoped)
+    if (byName.length === 1) return byName[0]
+    const byFull = catalog.filter(x => {
+      const xf = String((x && x.full_name) || '')
+      return xf === unscoped || xf.endsWith('/' + unscoped)
+    })
+    if (byFull.length === 1) return byFull[0]
+  }
+  return null
 }
 
 function shouldKeepDep(name, spec, nmPkg, catalog) {
@@ -681,9 +689,13 @@ function makeInstalledRow(root, name, spec, source, extra) {
     path = parsed.path || ''
   }
   const health = inspectPluginHealth(join(root, 'node_modules', name), full_name)
+  let warning = health.warning
+  if (health.placeholder && isIndexRepo({ full_name, name })) {
+    warning = '这是目录索引，不能当插件安装。请点「卸载」移除。'
+  }
   return {
     full_name, path, spec: s || name, name, source,
-    placeholder: health.placeholder, warning: health.warning,
+    placeholder: health.placeholder, warning,
     usable: health.ok, issues_url: health.issues_url,
     removable: extra && extra.removable === false ? false : true,
     parent: (extra && extra.parent) || '',
@@ -977,6 +989,19 @@ async function poolMap(items, limit, fn) {
 }
 
 async function checkOne(item) {
+  if (item && item.placeholder) {
+    return {
+      ...item,
+      version: (item && item.version) || '',
+      current: (item && item.current) || '',
+      latest: '',
+      currentSha: '',
+      latestSha: '',
+      newer: false,
+      status: 'placeholder',
+      self: !!(item && item.full_name === SELF_FULL),
+    }
+  }
   const full = (item && item.full_name) || ""
   const isSelf = full === SELF_FULL
   const local = readInstalledMeta(item)
@@ -1960,7 +1985,7 @@ async function handleHttp(req, res) {
       sendJson(res, 400, { ok: false, error: 'invalid json' })
       return
     }
-    const target = String((body && (body.full_name || body.name || body.spec)) || '').trim()
+    const target = String((body && (body.name || body.full_name || body.spec)) || '').trim()
     const profile = safeProfile(body && body.profile)
     if (!target) {
       sendJson(res, 400, { ok: false, error: 'full_name, name, or spec required' })

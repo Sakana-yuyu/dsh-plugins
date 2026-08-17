@@ -1,3 +1,31 @@
+              ? (installed.length === 0
+                ? "还没有从目录安装过插件。去「发现」里点安装。"
+                : "没有匹配的已安装插件")
+              : "没有匹配的插件"
+          ) : null,
+          ((view === "installed" || (!loading && !error)) && matched.length > 0) ? h("div", { style: { marginTop: 14 } },
+            h(Pager, { cur: cur, pages: pages, setPage: setPage })
+          ) : null
+        )
+      );
+    }
+
+    function CatalogView() {
+      var coverSize = readLocalUi().coverSize;
+      var os = useState(storeOpen);
+      var open = os[0], setOpen = os[1];
+      useEffect(function () {
+        var un = subscribeStoreOpen(function (v) { setOpen(v); });
+        return un;
+      }, []);
+      useEffect(function () {
+        if (open) return hideStoreChrome();
+        return;
+      }, [open]);
+      if (!open) return null;
+      // Full-screen opaque page rendered inside the shell.overlay layer. The
+      // background is fully opaque so the conversation window is completely
+      // hidden while the store is open. It must NOT portal to document.body:
       // the overlay layer is the shell's own stacking surface, and portaling
       // out of it can break z-order in the desktop shell.
       return h("div", {
@@ -200,30 +228,3 @@
       var pf = useState({
         showSidebar: ui0.showSidebar,
         coverSize: ui0.coverSize,
-        autoUpdateSelf: true,
-        autoUpdateOthers: false
-      });
-      var prefs = pf[0], setPrefs = pf[1];
-      var st = useState("");
-      var status = st[0], setStatus = st[1];
-      var bz = useState(false);
-      var busy = bz[0], setBusy = bz[1];
-      var kind = useState("info");
-      var statusKind = kind[0], setStatusKind = kind[1];
-      var hasNew = useState(false);
-      var newer = hasNew[0], setNewer = hasNew[1];
-      var rm = useState(false);
-      var showRestartModal = rm[0], setShowRestartModal = rm[1];
-      // Same dark-theme awareness as the sidebar entry: the settings section
-      // renders on the shell's own surface, so keep the foreground readable
-      // when that surface is dark.
-      var dt = useState(darkThemeActive());
-      var dark = dt[0], setDark = dt[1];
-
-      useEffect(function () {
-        function update() { setDark(darkThemeActive()); }
-        update();
-        var mo = null;
-        try {
-          if (document.body && window.MutationObserver) {
-            mo = new MutationObserver(update);

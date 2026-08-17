@@ -256,7 +256,7 @@ window.__ModuleLoader__.load({
     }
     function itemKey(row) {
       if (!row) return "";
-      return row.name || row.npm_name || row.full_name || row.spec || "";
+      return row.dep_name || row.name || row.npm_name || row.full_name || row.spec || "";
     }
     function cardFromInstalled(row) {
 
@@ -264,11 +264,15 @@ window.__ModuleLoader__.load({
         var c = {};
         for (var k in row.catalog) c[k] = row.catalog[k];
         c.installed = true;
+        c.dep_name = row.name || "";
+        c.removable = row.removable !== false;
+        c.placeholder = !!row.placeholder;
+        if (row.placeholder) c.newer = false;
         if (row.warning) c.warning = row.warning;
         if (row.issues_url) c.issues_url = row.issues_url;
         if (row.usable === false) c.usable = false;
         if (row.self) c.self = true;
-        return attachUpdateFields(c, row);
+        return attachUpdateFields(c, row.placeholder ? Object.assign({}, row, { newer: false }) : row);
       }
       var full = (row && row.full_name) || "";
       var pkgName = (row && row.name) || "";
@@ -276,10 +280,12 @@ window.__ModuleLoader__.load({
       return attachUpdateFields({
         name: pkgName || full,
         full_name: full,
+        dep_name: pkgName,
         npm_name: (row && row.npm_name) || "",
         install_method: (row && row.install_method) || (row && row.source) || "",
         source: (row && row.source) || "",
         removable: row && row.removable !== false,
+        placeholder: !!(row && row.placeholder),
         description: (row && row.spec) || "",
         install: "",
         author: slash > 0 ? full.slice(0, slash) : "",
@@ -1013,7 +1019,7 @@ window.__ModuleLoader__.load({
       var note = props.note;
       var onUpdate = props.onUpdate;
       var busyUp = !!props.busyUp;
-      var hasUpdate = !!(props.hasUpdate || (p && p.newer));
+      var hasUpdate = !!(props.hasUpdate || (p && p.newer)) && !(p && p.placeholder);
       var enabled = p && p.enabled !== false;
       var toggleable = !!(toggle && p && p.toggleable);
       var hCover = coverH(props.coverSize);
@@ -1024,7 +1030,7 @@ window.__ModuleLoader__.load({
       var dt = useState(null);
       var detail = dt[0], setDetail = dt[1];
       var full = p.full_name || "";
-      var id = p.npm_name || p.name || full;
+      var id = p.dep_name || p.npm_name || p.name || full;
       var author = p.author || ownerOf(full);
       var cmd = (p.install_method === "link" || p.install === "link") ? "" : (p.install || "");
       var linkOnly = p.install_method === "link" || p.install === "link" || /(^|\/)awesome-dsh-plugins$/i.test(full);
@@ -1196,7 +1202,7 @@ window.__ModuleLoader__.load({
             type: "button",
             disabled: busyUn || isSelf || !id || p.removable === false,
             title: isSelf ? "这是插件库本身" : "卸载此插件",
-            onClick: function () { if (uninstall) uninstall(id); },
+            onClick: function () { if (uninstall) uninstall(id, p); },
             style: btnStyle(busyUn || isSelf || !id || p.removable === false, false, !isSelf)
           }, busyUn ? "卸载中…" : "卸载") : null,
           (installed && toggleable) ? h("button", {
@@ -1458,24 +1464,28 @@ window.__ModuleLoader__.load({
           });
       }, [busy]);
 
-      var uninstall = useCallback(function (full) {
-        if (!full || busyUn[full]) return;
+      var uninstall = useCallback(function (full, item) {
+        var target = (item && (item.dep_name || item.npm_name || item.name)) || full;
+        var noteKey = (item && item.full_name) || full;
+        if (!target || busyUn[target] || busyUn[noteKey]) return;
         setBusyUn(function (b) {
           var n = {};
           for (var k in b) n[k] = b[k];
-          n[full] = true;
+          n[target] = true;
+          n[noteKey] = true;
           return n;
         });
         setNotes(function (m) {
           var n = {};
           for (var k in m) n[k] = m[k];
+          delete n[noteKey];
           delete n[full];
           return n;
         });
         fetch("/api/dsh-plugins/uninstall", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ full_name: full })
+          body: JSON.stringify({ full_name: (item && item.full_name) || full, name: target })
         })
           .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
           .then(function (data) {
@@ -1483,7 +1493,7 @@ window.__ModuleLoader__.load({
             setNotes(function (m) {
               var n = {};
               for (var k in m) n[k] = m[k];
-              n[full] = { ok: !!(data && data.ok), text: String(text) };
+              n[noteKey] = { ok: !!(data && data.ok), text: String(text) };
               return n;
             });
             if (data && data.ok) {
@@ -1495,14 +1505,14 @@ window.__ModuleLoader__.load({
             setNotes(function (m) {
               var n = {};
               for (var k in m) n[k] = m[k];
-              n[full] = { ok: false, text: String((e && e.message) || e || "卸载失败") };
+              n[noteKey] = { ok: false, text: String((e && e.message) || e || "卸载失败") };
               return n;
             });
           })
           .then(function () {
             setBusyUn(function (b) {
               var n = {};
-              for (var k in b) if (k !== full) n[k] = b[k];
+              for (var k in b) if (k !== target && k !== noteKey && k !== full) n[k] = b[k];
               return n;
             });
           });
@@ -1674,10 +1684,15 @@ window.__ModuleLoader__.load({
           if (row) {
             cardItem = {};
             for (var ck in item) cardItem[ck] = item[ck];
+            if (row.name && !cardItem.dep_name) cardItem.dep_name = row.name;
+            if (row.placeholder) {
+              cardItem.placeholder = true;
+              cardItem.newer = false;
+            }
             if (row.warning && !item.warning) cardItem.warning = row.warning;
             if (row.issues_url) cardItem.issues_url = row.issues_url;
             if (row.usable === false) cardItem.usable = false;
-            if (row.newer) cardItem.newer = true;
+            if (row.newer && !row.placeholder) cardItem.newer = true;
             if (row.current || row.version) cardItem.current = row.current || row.version;
             if (row.latest) cardItem.latest = row.latest;
             if (row.status) cardItem.status = row.status;
@@ -1694,7 +1709,7 @@ window.__ModuleLoader__.load({
             waiting: !!busy[id] || !!busy[full],
             busyUn: !!busyUn[id] || !!busyUn[full],
             busyUp: !!busyUp[id] || !!busyUp[full],
-            hasUpdate: !!(cardItem.newer || (row && row.newer)),
+            hasUpdate: !!(!cardItem.placeholder && (cardItem.newer || (row && row.newer && !row.placeholder))),
             onUpdate: updateOne,
             installed: !!(row || item.installed),
             isSelf: !!(row && row.self) || full === SELF_FULL,

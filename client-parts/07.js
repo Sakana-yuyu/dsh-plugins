@@ -1,3 +1,15 @@
+      var busy = bz[0], setBusy = bz[1];
+      var ms = useState({});
+      var notes = ms[0], setNotes = ms[1];
+      var pg = useState(1);
+      var page = pg[0], setPage = pg[1];
+      var upd = useState(null);
+      var updateInfo = upd[0], setUpdateInfo = upd[1];
+      var ub = useState(false);
+      var updating = ub[0], setUpdating = ub[1];
+      var un = useState(null);
+      var updateNote = un[0], setUpdateNote = un[1];
+      var vw = useState("discover");
       var view = vw[0], setView = vw[1];
       var inst = useState([]);
       var installed = inst[0], setInstalled = inst[1];
@@ -185,40 +197,26 @@
           });
       }, [busy]);
 
-      var uninstall = useCallback(function (full) {
-        if (!full || busyUn[full]) return;
+      var uninstall = useCallback(function (full, item) {
+        var target = (item && (item.dep_name || item.npm_name || item.name)) || full;
+        var noteKey = (item && item.full_name) || full;
+        if (!target || busyUn[target] || busyUn[noteKey]) return;
         setBusyUn(function (b) {
           var n = {};
           for (var k in b) n[k] = b[k];
-          n[full] = true;
+          n[target] = true;
+          n[noteKey] = true;
           return n;
         });
         setNotes(function (m) {
           var n = {};
           for (var k in m) n[k] = m[k];
+          delete n[noteKey];
           delete n[full];
           return n;
         });
         fetch("/api/dsh-plugins/uninstall", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ full_name: full })
+          body: JSON.stringify({ full_name: (item && item.full_name) || full, name: target })
         })
-          .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
-          .then(function (data) {
-            var text = (data && (data.message || data.error || data.stderr)) || (data && data.ok ? "已卸载" : "卸载失败");
-            setNotes(function (m) {
-              var n = {};
-              for (var k in m) n[k] = m[k];
-              n[full] = { ok: !!(data && data.ok), text: String(text) };
-              return n;
-            });
-            if (data && data.ok) {
-              markRestart();
-              refreshInstalled();
-            }
-          })
-          .catch(function (e) {
-            setNotes(function (m) {
-              var n = {};
-              for (var k in m) n[k] = m[k];

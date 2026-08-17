@@ -1,11 +1,29 @@
-              n[full] = { ok: false, text: String((e && e.message) || e || "卸载失败") };
+          .then(function (r) { return r.json().catch(function () { return { ok: false, message: "invalid json" }; }); })
+          .then(function (data) {
+            var text = (data && (data.message || data.error || data.stderr)) || (data && data.ok ? "已卸载" : "卸载失败");
+            setNotes(function (m) {
+              var n = {};
+              for (var k in m) n[k] = m[k];
+              n[noteKey] = { ok: !!(data && data.ok), text: String(text) };
+              return n;
+            });
+            if (data && data.ok) {
+              markRestart();
+              refreshInstalled();
+            }
+          })
+          .catch(function (e) {
+            setNotes(function (m) {
+              var n = {};
+              for (var k in m) n[k] = m[k];
+              n[noteKey] = { ok: false, text: String((e && e.message) || e || "卸载失败") };
               return n;
             });
           })
           .then(function () {
             setBusyUn(function (b) {
               var n = {};
-              for (var k in b) if (k !== full) n[k] = b[k];
+              for (var k in b) if (k !== target && k !== noteKey && k !== full) n[k] = b[k];
               return n;
             });
           });
@@ -177,10 +195,15 @@
           if (row) {
             cardItem = {};
             for (var ck in item) cardItem[ck] = item[ck];
+            if (row.name && !cardItem.dep_name) cardItem.dep_name = row.name;
+            if (row.placeholder) {
+              cardItem.placeholder = true;
+              cardItem.newer = false;
+            }
             if (row.warning && !item.warning) cardItem.warning = row.warning;
             if (row.issues_url) cardItem.issues_url = row.issues_url;
             if (row.usable === false) cardItem.usable = false;
-            if (row.newer) cardItem.newer = true;
+            if (row.newer && !row.placeholder) cardItem.newer = true;
             if (row.current || row.version) cardItem.current = row.current || row.version;
             if (row.latest) cardItem.latest = row.latest;
             if (row.status) cardItem.status = row.status;
@@ -192,38 +215,3 @@
             key: id || full || String(item.rank) + item.name,
             p: cardItem,
             install: install,
-            uninstall: uninstall,
-            toggle: toggle,
-            waiting: !!busy[id] || !!busy[full],
-            busyUn: !!busyUn[id] || !!busyUn[full],
-            busyUp: !!busyUp[id] || !!busyUp[full],
-            hasUpdate: !!(cardItem.newer || (row && row.newer)),
-            onUpdate: updateOne,
-            installed: !!(row || item.installed),
-            isSelf: !!(row && row.self) || full === SELF_FULL,
-            note: notes[full],
-            coverSize: coverSize
-          }));
-        })(shown[j]);
-      }
-
-      return h("div", {
-        style: {
-          display: "flex",
-          flexDirection: "column",
-          height: "100%",
-          width: "100%",
-          flex: 1,
-          minHeight: 0,
-          minWidth: 0,
-          alignSelf: "stretch",
-          color: FG,
-          fontSize: 13,
-          lineHeight: "20px",
-          boxSizing: "border-box"
-        }
-      },
-        h("div", {
-          style: {
-            display: "flex",
-            alignItems: "center",

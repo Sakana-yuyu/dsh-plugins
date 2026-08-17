@@ -1,3 +1,10 @@
+          (detail && detail.loading) ? h("div", { style: { color: MUTED, marginTop: 12 } }, "正在加载效果图和文档…") : null,
+          (detail && detail.error) ? h("div", { style: { color: ERR, marginTop: 12 } }, detail.error) : null,
+          sectionTitle("效果图"),
+          imgs.length ? h("div", {
+            style: {
+              position: "relative",
+              height: 340,
               borderRadius: 8,
               overflow: "hidden",
               background: "rgba(0,0,0,0.04)",
@@ -165,7 +172,7 @@
       var note = props.note;
       var onUpdate = props.onUpdate;
       var busyUp = !!props.busyUp;
-      var hasUpdate = !!(props.hasUpdate || (p && p.newer));
+      var hasUpdate = !!(props.hasUpdate || (p && p.newer)) && !(p && p.placeholder);
       var enabled = p && p.enabled !== false;
       var toggleable = !!(toggle && p && p.toggleable);
       var hCover = coverH(props.coverSize);
@@ -176,7 +183,7 @@
       var dt = useState(null);
       var detail = dt[0], setDetail = dt[1];
       var full = p.full_name || "";
-      var id = p.npm_name || p.name || full;
+      var id = p.dep_name || p.npm_name || p.name || full;
       var author = p.author || ownerOf(full);
       var cmd = (p.install_method === "link" || p.install === "link") ? "" : (p.install || "");
       var linkOnly = p.install_method === "link" || p.install === "link" || /(^|\/)awesome-dsh-plugins$/i.test(full);
@@ -202,18 +209,3 @@
                 images: imgs,
                 readme_zh: (data && data.readme_zh) || "",
                 readme_en: (data && data.readme_en) || "",
-                error: data && data.ok === false ? ((data.error || data.message) || "加载失败") : ""
-              });
-            })
-            .catch(function (e) {
-              setDetail({
-                loading: false,
-                images: [],
-                readme_zh: "",
-                readme_en: "",
-                error: String((e && e.message) || e || "加载失败")
-              });
-            });
-        }
-      }
-      var zh = p.description_zh || "";

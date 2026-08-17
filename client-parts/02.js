@@ -48,7 +48,7 @@
     }
     function itemKey(row) {
       if (!row) return "";
-      return row.name || row.npm_name || row.full_name || row.spec || "";
+      return row.dep_name || row.name || row.npm_name || row.full_name || row.spec || "";
     }
     function cardFromInstalled(row) {
 
@@ -56,11 +56,15 @@
         var c = {};
         for (var k in row.catalog) c[k] = row.catalog[k];
         c.installed = true;
+        c.dep_name = row.name || "";
+        c.removable = row.removable !== false;
+        c.placeholder = !!row.placeholder;
+        if (row.placeholder) c.newer = false;
         if (row.warning) c.warning = row.warning;
         if (row.issues_url) c.issues_url = row.issues_url;
         if (row.usable === false) c.usable = false;
         if (row.self) c.self = true;
-        return attachUpdateFields(c, row);
+        return attachUpdateFields(c, row.placeholder ? Object.assign({}, row, { newer: false }) : row);
       }
       var full = (row && row.full_name) || "";
       var pkgName = (row && row.name) || "";
@@ -68,10 +72,12 @@
       return attachUpdateFields({
         name: pkgName || full,
         full_name: full,
+        dep_name: pkgName,
         npm_name: (row && row.npm_name) || "",
         install_method: (row && row.install_method) || (row && row.source) || "",
         source: (row && row.source) || "",
         removable: row && row.removable !== false,
+        placeholder: !!(row && row.placeholder),
         description: (row && row.spec) || "",
         install: "",
         author: slash > 0 ? full.slice(0, slash) : "",
@@ -216,17 +222,3 @@
               ? ("共 " + names.length + " 个。对应卡片会标「有更新」，点那张卡的「更新」。")
               : ("当前 " + (info.current || "-") + " → " + (info.latest || info.latestSha || "最新"))
           )
-        ),
-        h("button", {
-          type: "button",
-          disabled: !!busy,
-          onClick: onUpdate,
-          style: btnStyle(!!busy, true)
-        }, busy ? "更新中…" : "立即更新")
-      );
-    }
-
-    function RestartBanner(props) {
-      if (!props.show) return null;
-      return h("div", {
-        style: {

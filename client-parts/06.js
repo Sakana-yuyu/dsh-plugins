@@ -1,3 +1,18 @@
+                error: data && data.ok === false ? ((data.error || data.message) || "加载失败") : ""
+              });
+            })
+            .catch(function (e) {
+              setDetail({
+                loading: false,
+                images: [],
+                readme_zh: "",
+                readme_en: "",
+                error: String((e && e.message) || e || "加载失败")
+              });
+            });
+        }
+      }
+      var zh = p.description_zh || "";
       var en = p.description_en || "";
       return h("div", {
         onClick: function (e) {
@@ -129,7 +144,7 @@
             type: "button",
             disabled: busyUn || isSelf || !id || p.removable === false,
             title: isSelf ? "这是插件库本身" : "卸载此插件",
-            onClick: function () { if (uninstall) uninstall(id); },
+            onClick: function () { if (uninstall) uninstall(id, p); },
             style: btnStyle(busyUn || isSelf || !id || p.removable === false, false, !isSelf)
           }, busyUn ? "卸载中…" : "卸载") : null,
           (installed && toggleable) ? h("button", {
@@ -192,15 +207,3 @@
       var ct = useState("all");
       var cat = ct[0], setCat = ct[1];
       var bz = useState({});
-      var busy = bz[0], setBusy = bz[1];
-      var ms = useState({});
-      var notes = ms[0], setNotes = ms[1];
-      var pg = useState(1);
-      var page = pg[0], setPage = pg[1];
-      var upd = useState(null);
-      var updateInfo = upd[0], setUpdateInfo = upd[1];
-      var ub = useState(false);
-      var updating = ub[0], setUpdating = ub[1];
-      var un = useState(null);
-      var updateNote = un[0], setUpdateNote = un[1];
-      var vw = useState("discover");

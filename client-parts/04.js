@@ -1,3 +1,10 @@
+      if (!/^https:\/\//i.test(url)) return;
+      function invokeTauri(cmd, args) {
+        try {
+          var inv = (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke)
+            || (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke);
+          if (inv) return inv(cmd, args);
+        } catch (e) {}
         return null;
       }
       try {
@@ -222,10 +229,3 @@
               )
             )
           ),
-          (detail && detail.loading) ? h("div", { style: { color: MUTED, marginTop: 12 } }, "正在加载效果图和文档…") : null,
-          (detail && detail.error) ? h("div", { style: { color: ERR, marginTop: 12 } }, detail.error) : null,
-          sectionTitle("效果图"),
-          imgs.length ? h("div", {
-            style: {
-              position: "relative",
-              height: 340,

@@ -1,3 +1,38 @@
+            uninstall: uninstall,
+            toggle: toggle,
+            waiting: !!busy[id] || !!busy[full],
+            busyUn: !!busyUn[id] || !!busyUn[full],
+            busyUp: !!busyUp[id] || !!busyUp[full],
+            hasUpdate: !!(!cardItem.placeholder && (cardItem.newer || (row && row.newer && !row.placeholder))),
+            onUpdate: updateOne,
+            installed: !!(row || item.installed),
+            isSelf: !!(row && row.self) || full === SELF_FULL,
+            note: notes[full],
+            coverSize: coverSize
+          }));
+        })(shown[j]);
+      }
+
+      return h("div", {
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          width: "100%",
+          flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          alignSelf: "stretch",
+          color: FG,
+          fontSize: 13,
+          lineHeight: "20px",
+          boxSizing: "border-box"
+        }
+      },
+        h("div", {
+          style: {
+            display: "flex",
+            alignItems: "center",
             justifyContent: "space-between",
             padding: "12px 20px",
             borderBottom: "1px solid " + LINE,
@@ -165,31 +200,3 @@
           }, cards) : null,
           ((view === "installed" || (!loading && !error)) && matched.length === 0) ? h("div", { style: { color: MUTED } },
             view === "installed"
-              ? (installed.length === 0
-                ? "还没有从目录安装过插件。去「发现」里点安装。"
-                : "没有匹配的已安装插件")
-              : "没有匹配的插件"
-          ) : null,
-          ((view === "installed" || (!loading && !error)) && matched.length > 0) ? h("div", { style: { marginTop: 14 } },
-            h(Pager, { cur: cur, pages: pages, setPage: setPage })
-          ) : null
-        )
-      );
-    }
-
-    function CatalogView() {
-      var coverSize = readLocalUi().coverSize;
-      var os = useState(storeOpen);
-      var open = os[0], setOpen = os[1];
-      useEffect(function () {
-        var un = subscribeStoreOpen(function (v) { setOpen(v); });
-        return un;
-      }, []);
-      useEffect(function () {
-        if (open) return hideStoreChrome();
-        return;
-      }, [open]);
-      if (!open) return null;
-      // Full-screen opaque page rendered inside the shell.overlay layer. The
-      // background is fully opaque so the conversation window is completely
-      // hidden while the store is open. It must NOT portal to document.body:

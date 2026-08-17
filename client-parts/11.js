@@ -1,3 +1,30 @@
+        autoUpdateSelf: true,
+        autoUpdateOthers: false
+      });
+      var prefs = pf[0], setPrefs = pf[1];
+      var st = useState("");
+      var status = st[0], setStatus = st[1];
+      var bz = useState(false);
+      var busy = bz[0], setBusy = bz[1];
+      var kind = useState("info");
+      var statusKind = kind[0], setStatusKind = kind[1];
+      var hasNew = useState(false);
+      var newer = hasNew[0], setNewer = hasNew[1];
+      var rm = useState(false);
+      var showRestartModal = rm[0], setShowRestartModal = rm[1];
+      // Same dark-theme awareness as the sidebar entry: the settings section
+      // renders on the shell's own surface, so keep the foreground readable
+      // when that surface is dark.
+      var dt = useState(darkThemeActive());
+      var dark = dt[0], setDark = dt[1];
+
+      useEffect(function () {
+        function update() { setDark(darkThemeActive()); }
+        update();
+        var mo = null;
+        try {
+          if (document.body && window.MutationObserver) {
+            mo = new MutationObserver(update);
             mo.observe(document.body, { attributes: true, attributeFilter: ["data-ds-dark-theme", "class", "style"] });
           }
         } catch (e) {}
@@ -173,23 +200,3 @@
             style: chipStyle(prefs.coverSize === "medium")
           }, "中图")
         ),
-        toggleRow("自动更新本目录插件", !!prefs.autoUpdateSelf, function (v) { patchPrefs({ autoUpdateSelf: v }); }),
-        toggleRow("自动更新已安装的目录插件", !!prefs.autoUpdateOthers, function (v) { patchPrefs({ autoUpdateOthers: v }); }),
-        h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 } },
-          h("button", { type: "button", disabled: busy, onClick: checkNow, style: btnStyle(busy, true) }, "立即检查更新"),
-          h("button", { type: "button", disabled: busy, onClick: function () { postUpdate("self"); }, style: btnStyle(busy, false) }, "更新本插件"),
-          h("button", { type: "button", disabled: busy, onClick: function () { postUpdate("all"); }, style: btnStyle(busy, false) }, "更新全部")
-        ),
-        newer ? h("div", {
-          style: {
-            marginTop: 12,
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1px solid " + BRAND,
-            color: BRAND,
-            fontWeight: 650
-          }
-        }, "有可用更新，请点「更新本插件」，完成后请完全退出 dsh-desktop 再打开") : null,
-        status ? h("div", {
-          style: {
-            marginTop: 10,

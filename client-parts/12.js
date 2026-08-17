@@ -1,3 +1,23 @@
+        toggleRow("自动更新本目录插件", !!prefs.autoUpdateSelf, function (v) { patchPrefs({ autoUpdateSelf: v }); }),
+        toggleRow("自动更新已安装的目录插件", !!prefs.autoUpdateOthers, function (v) { patchPrefs({ autoUpdateOthers: v }); }),
+        h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 } },
+          h("button", { type: "button", disabled: busy, onClick: checkNow, style: btnStyle(busy, true) }, "立即检查更新"),
+          h("button", { type: "button", disabled: busy, onClick: function () { postUpdate("self"); }, style: btnStyle(busy, false) }, "更新本插件"),
+          h("button", { type: "button", disabled: busy, onClick: function () { postUpdate("all"); }, style: btnStyle(busy, false) }, "更新全部")
+        ),
+        newer ? h("div", {
+          style: {
+            marginTop: 12,
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid " + BRAND,
+            color: BRAND,
+            fontWeight: 650
+          }
+        }, "有可用更新，请点「更新本插件」，完成后请完全退出 dsh-desktop 再打开") : null,
+        status ? h("div", {
+          style: {
+            marginTop: 10,
             padding: "10px 12px",
             borderRadius: 8,
             border: "1px solid " + (statusKind === "ok" ? OK : statusKind === "err" ? ERR : statusKind === "warn" ? BRAND : LINE),

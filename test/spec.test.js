@@ -12,6 +12,7 @@ import {
   PLACEHOLDER_WARN,
   isLinkInstall,
   row,
+  findCatalogHit,
 } from '../index.js'
 
 const FULL = 'Small-tailqwq/dsh-deep-whale'
@@ -134,4 +135,45 @@ test('row treats radar awesome lists as link even without install field', () => 
   })
   assert.equal(r.install_method, 'link')
   assert.equal(r.install, '')
+})
+
+const TABBIT = { name: 'dsh-plugin', full_name: 'Tabbit-Browser/dsh-plugin' }
+const ADS = { name: 'dsh-ads', full_name: 'Nagi-ovo/dsh-ads' }
+
+test('findCatalogHit does not map awesome-dsh-plugins onto Tabbit via substring', () => {
+  // "awesome-dsh-plugins" contains the substring "dsh-plugin", which used to
+  // steal Tabbit-Browser/dsh-plugin's catalog card and break uninstall.
+  const hit = findCatalogHit([TABBIT, ADS], {
+    name: 'awesome-dsh-plugins',
+    full_name: 'AdamPlatin123/awesome-dsh-plugins',
+  })
+  assert.equal(hit, null)
+})
+
+test('findCatalogHit matches exact full_name even when package name differs', () => {
+  const hit = findCatalogHit([TABBIT], {
+    name: 'tabbit-browser',
+    full_name: 'Tabbit-Browser/dsh-plugin',
+  })
+  assert.ok(hit)
+  assert.equal(hit.full_name, TABBIT.full_name)
+})
+
+test('findCatalogHit matches scoped alias to unique repo basename', () => {
+  const hit = findCatalogHit([TABBIT, ADS], {
+    name: '@dsh-external/dsh-ads',
+    full_name: '',
+  })
+  assert.ok(hit)
+  assert.equal(hit.full_name, ADS.full_name)
+})
+
+test('toUpdateSpec skips pnpm placeholder packages', () => {
+  assert.equal(toUpdateSpec({
+    name: 'awesome-dsh-plugins',
+    full_name: 'AdamPlatin123/awesome-dsh-plugins',
+    spec: 'github:AdamPlatin123/awesome-dsh-plugins',
+    source: 'github',
+    placeholder: true,
+  }), '')
 })

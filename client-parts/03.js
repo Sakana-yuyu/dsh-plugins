@@ -1,3 +1,17 @@
+        ),
+        h("button", {
+          type: "button",
+          disabled: !!busy,
+          onClick: onUpdate,
+          style: btnStyle(!!busy, true)
+        }, busy ? "更新中…" : "立即更新")
+      );
+    }
+
+    function RestartBanner(props) {
+      if (!props.show) return null;
+      return h("div", {
+        style: {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -168,10 +182,3 @@
     }
     function openExternal(url) {
       url = String(url || "").trim();
-      if (!/^https:\/\//i.test(url)) return;
-      function invokeTauri(cmd, args) {
-        try {
-          var inv = (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke)
-            || (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke);
-          if (inv) return inv(cmd, args);
-        } catch (e) {}
